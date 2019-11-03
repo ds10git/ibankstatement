@@ -142,11 +142,23 @@ public class ContextMenuImportBankStatement implements Extension {
                     for(int i = 0; i < parts.length; i++) {
                       
                       if(!parts[i].trim().isEmpty()) {
-                        switch(i) {
-                          case 0: year = m.group(Integer.parseInt(parts[i]));break;
-                          case 1: month = m.group(Integer.parseInt(parts[i]));break;
-                          case 2: day = m.group(Integer.parseInt(parts[i]));break;
-                          case 3: number = m.group(Integer.parseInt(parts[i]));break;
+                        Placeholder placeholder = Placeholder.get(parts[i]);
+                        
+                        if(placeholder != null) {
+                          switch(placeholder.getType()) {
+                            case Placeholder.TYPE_YEAR: year = m.group(i+1);break;
+                            case Placeholder.TYPE_MONTH: month = m.group(i+1);break;
+                            case Placeholder.TYPE_DAY: day = m.group(i+1);break;
+                            case Placeholder.TYPE_NUMBER: number = m.group(i+1);break;
+                          }
+                        }
+                        else {
+                          switch(i) {
+                            case 0: year = m.group(Integer.parseInt(parts[i]));break;
+                            case 1: month = m.group(Integer.parseInt(parts[i]));break;
+                            case 2: day = m.group(Integer.parseInt(parts[i]));break;
+                            case 3: number = m.group(Integer.parseInt(parts[i]));break;
+                          }
                         }
                       }
                     }
@@ -251,7 +263,8 @@ public class ContextMenuImportBankStatement implements Extension {
       
       // only add unknown bank statements
       if(!known) {
-        renamePrefix = renamePrefix.replace("{year}", year).replace("{number}", number);
+        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_YEAR), year, renamePrefix);
+        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_NUMBER), number, renamePrefix);
         
         Date endDate = null;
         Date startDate = null;
@@ -278,13 +291,14 @@ public class ContextMenuImportBankStatement implements Extension {
         if(day != null && month != null) {
           setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, Integer.parseInt(day));
           endDate = cal.getTime();
-          renamePrefix = renamePrefix.replace("{month}", month).replace("{day}", day);
+          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), month, renamePrefix);
+          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_DAY), day, renamePrefix);
         }
         else if(month != null) {
           setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
           cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
           endDate = cal.getTime();
-          renamePrefix = renamePrefix.replace("{month}", month);
+          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), month, renamePrefix);
         }
         
         Kontoauszug auszug = Settings.getDBService().createObject(Kontoauszug.class,null);

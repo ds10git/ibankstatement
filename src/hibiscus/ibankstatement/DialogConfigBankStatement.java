@@ -63,7 +63,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
   
   private static final String VALUE_DEFAULT_PATTERN_NAME = "({\\d{4})-({\\d{2})-({\\d{2})_{konto}_({\\d{2}})\\.pdf";
   
-  private final static int WIDTH = 850;
+  private final static int WIDTH = 870;
   private final static int HEIGHT = 470;
   
   private Konto mKonto;
@@ -83,6 +83,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
   
   public DialogConfigBankStatement(final Settings settings, final Konto konto) {
     super(POSITION_CENTER);
+    
     mKonto = konto;
     mSettings = settings;
     try {
@@ -132,7 +133,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
   protected void paint(Composite parent) throws Exception {
     Container c1 = new SimpleContainer(parent);
     
-    c1.addText("Der Datei-Pattern-Eintrag erlaubt den Platzhalter {konto}, unter Matching-Groups ist die Reihenfolge der Matching-Groups im Datei-Pattern einzutragen: JAHR, MONAT, TAG, NUMMER, nicht vorkommende Werte werden leer gelassen. Fehlt beispielsweise der Tag wird Jahr,Monat,,Nummer eingetragen. Mit dem Umbenenne-Prefix lässt sich ein Prefix festlegen, der dem Dateiname des Kontoauszugs voran gestellt wird. Mögliche Platzhalter: {year}, {month}, {day} und {number}\n", true);
+    c1.addText("Der Datei-Pattern-Eintrag erlaubt den Platzhalter {konto}, unter Matching-Groups ist die Reihenfolge der Matching-Groups im Datei-Pattern einzutragen z.B.: {jahr},{monat},{tag},{nummer}, nicht vorkommende Werte werden weggelassen. Mit dem Umbenennen-Prefix lässt sich ein Prefix festlegen, der dem Dateiname des Kontoauszugs voran gestellt wird. Mögliche Platzhalter: {jahr}, {monat}, {tag} und {nummer}\n", true);
     c1.addInput(getPredefinedInput());
     c1.addSeparator();
     
@@ -157,7 +158,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
             final String[] parts = String.valueOf(getMatchOrder().getValue()).split(",");
             
             for(String part : parts) {
-              if(!part.trim().isEmpty()) {
+              if(!part.trim().isEmpty() && !Placeholder.contains(part)) {
                 try {
                   Integer.parseInt(part);
                 }catch(NumberFormatException nfe) {
@@ -308,9 +309,11 @@ public class DialogConfigBankStatement extends AbstractDialog {
     if(mPredefined == null) {
       ArrayList<KontoData> list = new ArrayList<>();
       
-      list.add(new KontoData("comdirect bank", ".*?Finanzreport_Nr\\._(\\d{2})_per_(\\d{2})\\.(\\d{2})\\.(\\d{4}).*?\\.pdf", "4,3,2,1", "20041133","20041144","20041155"));
-      list.add(new KontoData("Consorsbank", ".*?KONTOAUSZUG_.*?KONTO_{konto}_dat(\\d{4})(\\d{2})(\\d{2})_id.*?\\.pdf", "1,2,3", "76030080","70120400"));
-      list.add(new KontoData("Rabodirect", ".*?Kontoauszug_(\\d{4})(\\d{2})_DE\\d{2}50210212{konto}\\.pdf", "1,2", "50210212"));
+      // altes Format 4=Nummer, 1=Jahr, 2=Monat, 3=Tag
+      
+      list.add(new KontoData("comdirect bank", ".*?Finanzreport_Nr\\._(\\d{2})_per_(\\d{2})\\.(\\d{2})\\.(\\d{4}).*?\\.pdf", "{nummer},{tag},{monat},{jahr}", "20041133","20041144","20041155"));
+      list.add(new KontoData("Consorsbank", ".*?KONTOAUSZUG_.*?KONTO_{konto}_dat(\\d{4})(\\d{2})(\\d{2})_id.*?\\.pdf", "{jahr},{monat},{tag}", "76030080","70120400"));
+      list.add(new KontoData("Rabodirect", ".*?Kontoauszug_(\\d{4})(\\d{2})_DE\\d{2}50210212{konto}\\.pdf", "{jahr},{monat}", "50210212"));
       
       mPredefined = new SelectInput(list, null);
       mPredefined.setName("Bank-Profile:");
@@ -385,7 +388,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
     if(mMatchOrder == null) {
       mMatchOrder = new TextInput(mKonto.getMeta(KEY_MATCH_ORDER, ""));
       mMatchOrder.setName("Match-Reihenfolge:");
-      mMatchOrder.setHint("Reihenfolge der Matching-Groups für Jahr, Monat, Tag, Nummer, z.B.: 1,2,3,4");
+      mMatchOrder.setHint("Reihenfolge der Matching-Groups für {jahr},{monat},{tag},{nummer}, z.B.: {jahr},{monat},{nummer}");
       mMatchOrder.setMandatory(true);
     }
     
