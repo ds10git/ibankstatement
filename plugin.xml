@@ -6,7 +6,7 @@
         name="hibiscus.ibankstatement" version="0.3.0" class="hibiscus.ibankstatement.Plugin">
 
   <description>Hibiscus - Profil-basierter Import von Kontoauszügen</description>
-  <url>http://hibiscus.tvbrowser.org/download/hibiscus.ibankstatement.zip</url>
+  <url>https://hibiscus.tvbrowser.org/download/hibiscus.ibankstatement.zip</url>
   <homepage>https://github.com/ds10git/ibankstatement</homepage>
   <license>GPL v2</license>
 
