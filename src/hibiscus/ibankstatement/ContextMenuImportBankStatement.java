@@ -310,7 +310,12 @@ public class ContextMenuImportBankStatement implements Extension {
         auszug.setNummer(num);
         
         if(startDate != null) {
-          auszug.setVon(startDate);
+          if(endDate != null && startDate.after(endDate)) {
+            auszug.setVon(endDate);
+          }
+          else {
+            auszug.setVon(startDate);
+          }
         }
         if(endDate != null) {
           if(konto.getMeta(DialogConfigBankStatement.KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
