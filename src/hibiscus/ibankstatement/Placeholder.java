@@ -69,7 +69,11 @@ public class Placeholder {
     return mType;
   }
   
-  public static String replace(final Placeholder search, final String replace, String subject) {
+  public static String replace(final Placeholder search, String replace, String subject) {
+    if(replace.length() == 1) {
+      replace = "0" + replace;
+    }
+    
     subject = subject.replace(search.mName, replace);
     
     for(String test : search.mAliases) {

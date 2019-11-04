@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import de.jollyday.HolidayCalendar;
+import de.jollyday.HolidayManager;
+import de.jollyday.ManagerParameters;
 import de.willuhn.datasource.GenericIterator;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.extension.Extendable;
@@ -310,6 +313,25 @@ public class ContextMenuImportBankStatement implements Extension {
           auszug.setVon(startDate);
         }
         if(endDate != null) {
+          if(konto.getMeta(DialogConfigBankStatement.KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
+            cal.setTime(endDate);
+            
+            if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
+              cal.add(Calendar.DAY_OF_MONTH, -1);
+            }
+            else if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+              cal.add(Calendar.DAY_OF_MONTH, -2);
+            }
+            
+            HolidayManager m = HolidayManager.getInstance(ManagerParameters.create(HolidayCalendar.GERMANY));
+            
+            while(m.isHoliday(cal)) {
+              cal.add(Calendar.DAY_OF_MONTH, -1);
+            }
+            
+            endDate = cal.getTime();
+          }
+          
           auszug.setBis(endDate);
         }
         

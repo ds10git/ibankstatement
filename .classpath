@@ -4,5 +4,6 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="src" path="/jameica"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/hibiscus"/>
+	<classpathentry kind="lib" path="lib/jollyday-0.5.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
