@@ -149,10 +149,10 @@ public class ContextMenuImportBankStatement implements Extension {
                         
                         if(placeholder != null) {
                           switch(placeholder.getType()) {
-                            case Placeholder.TYPE_YEAR: year = m.group(i+1);break;
-                            case Placeholder.TYPE_MONTH: month = m.group(i+1);break;
-                            case Placeholder.TYPE_DAY: day = m.group(i+1);break;
-                            case Placeholder.TYPE_NUMBER: number = m.group(i+1);break;
+                            case Placeholder.TYPE_YEAR: year = placeholder.getValue(parts[i], m.group(i+1));break;
+                            case Placeholder.TYPE_MONTH: month = placeholder.getValue(parts[i], m.group(i+1));break;
+                            case Placeholder.TYPE_DAY: day = placeholder.getValue(parts[i], m.group(i+1));break;
+                            case Placeholder.TYPE_NUMBER: number = placeholder.getValue(parts[i], m.group(i+1));break;
                           }
                         }
                         else {
@@ -202,8 +202,45 @@ public class ContextMenuImportBankStatement implements Extension {
     return cal;
   }
   
-  private void importKontoauszug(final File inFile, final Konto konto, final String year, final String month, final String day, String number, String renamePrefix) throws ApplicationException {
+  private void importKontoauszug(final File inFile, final Konto konto, final String year, String month, String day, String number, String renamePrefix) throws ApplicationException {
     try {
+      if(month == null) {
+        Calendar tmp = Calendar.getInstance();
+        
+        if(number != null) {
+          try {
+            int yearValue = Integer.parseInt(year);
+            int test = Integer.parseInt(number);
+            
+            if(test > 0 && test < 13) {
+              tmp = setCalendarDate(tmp, yearValue, test-1, 1);
+              tmp.set(Calendar.DAY_OF_MONTH, tmp.getActualMaximum(Calendar.DAY_OF_MONTH));
+            }
+            
+          }catch(NumberFormatException nfe) {
+            nfe.printStackTrace();
+          }
+        }
+        
+        DialogDateSelection config = new DialogDateSelection(DialogDateSelection.TYPE_DATE_END,inFile,tmp.getTime(),konto);
+        
+        try {
+          config.open();
+          
+          if(config.getData() != null) {
+            tmp.setTime(config.getData());
+            month = String.valueOf(tmp.get(Calendar.MONTH)+1);
+            day = String.valueOf(tmp.get(Calendar.DAY_OF_MONTH));
+          }
+          else {
+            return;
+          }
+        } catch (Exception e) {
+          e.printStackTrace();
+          return;
+        }
+      }
+      
       final Calendar cal = setCalendarDate(Integer.parseInt(year), Calendar.JANUARY, 1);
       
       Kontoauszug last = null;
@@ -266,8 +303,8 @@ public class ContextMenuImportBankStatement implements Extension {
       
       // only add unknown bank statements
       if(!known) {
-        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_YEAR), year, renamePrefix);
-        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_NUMBER), number, renamePrefix);
+        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_YEAR), yearInt, renamePrefix);
+        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_NUMBER), num, renamePrefix);
         
         Date endDate = null;
         Date startDate = null;
@@ -294,14 +331,25 @@ public class ContextMenuImportBankStatement implements Extension {
         if(day != null && month != null) {
           setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, Integer.parseInt(day));
           endDate = cal.getTime();
-          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), month, renamePrefix);
-          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_DAY), day, renamePrefix);
+          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), cal.get(Calendar.MONTH)+1, renamePrefix);
+          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_DAY), cal.get(Calendar.DAY_OF_MONTH), renamePrefix);
         }
         else if(month != null) {
           setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
           cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
           endDate = cal.getTime();
-          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), month, renamePrefix);
+          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), cal.get(Calendar.MONTH)+1, renamePrefix);
+        }
+        
+        if(startDate != null && endDate != null && startDate.equals(endDate)) {
+           DialogDateSelection config = new DialogDateSelection(DialogDateSelection.TYPE_DATE_START,inFile,startDate,konto);
+           
+           try {  
+            config.open();
+            startDate = config.getData();
+          }catch(Exception e) {
+            e.printStackTrace();
+          }
         }
         
         Kontoauszug auszug = Settings.getDBService().createObject(Kontoauszug.class,null);

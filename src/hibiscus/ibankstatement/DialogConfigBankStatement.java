@@ -18,9 +18,13 @@
  */
 package hibiscus.ibankstatement;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.DisposeEvent;
@@ -45,6 +49,7 @@ import de.willuhn.jameica.gui.parts.ButtonArea;
 import de.willuhn.jameica.gui.util.Container;
 import de.willuhn.jameica.gui.util.SimpleContainer;
 import de.willuhn.jameica.hbci.rmi.Konto;
+import de.willuhn.jameica.system.Application;
 import de.willuhn.jameica.system.Settings;
 import de.willuhn.util.ApplicationException;
 
@@ -69,6 +74,8 @@ public class DialogConfigBankStatement extends AbstractDialog {
   private final static int WIDTH = 870;
   private final static int HEIGHT = 490;
   
+  private HashMap<Input, InputValidator> mValidationMap;
+  
   private Konto mKonto;
   private Settings mSettings;
   
@@ -88,8 +95,10 @@ public class DialogConfigBankStatement extends AbstractDialog {
   public DialogConfigBankStatement(final Settings settings, final Konto konto) {
     super(POSITION_CENTER);
     
+    mValidationMap = new HashMap<>(0);
     mKonto = konto;
     mSettings = settings;
+    
     try {
       setTitle("Konfiguriere Import von Kontoauszügen für: " + konto.getBezeichnung());
     } catch (RemoteException e) {
@@ -104,7 +113,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
    * @param input The input to check.
    * @return <code>true</code> if the Input is valid.
    */
-  private static boolean isValid(Input input) {
+  private boolean isValid(Input input) {
     return isValid(input, true);
   }
   
@@ -115,7 +124,13 @@ public class DialogConfigBankStatement extends AbstractDialog {
   * So an Input with an empty value is still valid. 
   * @return <code>true</code> if the Input is valid.
   */
-  private static boolean isValid(Input input, boolean checkEmpty) {
+  private boolean isValid(Input input, boolean checkEmpty) {
+    final InputValidator test = mValidationMap.get(input);
+    
+    if(test != null) {
+      return test.isValid(input, checkEmpty);
+    }
+    
     boolean result = !String.valueOf(input.getValue()).trim().isEmpty();
     
     if(input instanceof DirectoryInput) {
@@ -318,11 +333,48 @@ public class DialogConfigBankStatement extends AbstractDialog {
       
       // altes Format 4=Nummer, 1=Jahr, 2=Monat, 3=Tag
       
-      list.add(new KontoData("comdirect bank", ".*?Finanzreport_Nr\\._(\\d{2})_per_(\\d{2})\\.(\\d{2})\\.(\\d{4}).*?\\.pdf", "{nummer},{tag},{monat},{jahr}", "20041133","20041144","20041155"));
-      list.add(new KontoData("Consorsbank", ".*?KONTOAUSZUG_.*?KONTO_{konto}_dat(\\d{4})(\\d{2})(\\d{2})_id.*?\\.pdf", "{jahr},{monat},{tag}", "76030080","70120400"));
-      list.add(new KontoData(true, "Fidorbank", ".*?Kontoauszug_(\\d{2})_(\\d{4})\\.pdf", "{monat},{jahr}", "70022200"));
-      list.add(new KontoData("MoneYou", ".*?DE\\d{2}50324040{konto}_\\d{6}_(\\d{4})(\\d{2})(\\d{2})\\.pdf", "{jahr},{monat},{tag}", "50324040"));
-      list.add(new KontoData("Rabodirect", ".*?Kontoauszug_(\\d{4})(\\d{2})_DE\\d{2}50210212{konto}\\.pdf", "{jahr},{monat}", "50210212"));
+      try(BufferedReader read = new BufferedReader(new InputStreamReader(Application.getPluginLoader().getManifest(Plugin.class).getClassLoader().getResourceAsStream("csv/known_institutes.csv"), "UTF-8")) ) {
+        String line = read.readLine();
+        
+        String[] parts = line.split(";");
+        
+        int indexName = -1;
+        int indexPattern = -1;
+        int indexOrder = -1;
+        int indexEndsOnWeekday = -1;
+        int indexBLZ = -1;
+        int indexBIC = -1;
+        
+        for(int i = 0; i < parts.length; i++) {
+          if("name".equals(parts[i])) {
+            indexName = i;
+          }
+          else if("pattern".equals(parts[i])) {
+            indexPattern = i;
+          }
+          else if("order".equals(parts[i])) {
+            indexOrder = i;
+          }
+          else if("ends_on_weekday".equals(parts[i])) {
+            indexEndsOnWeekday = i;
+          }
+          else if("BLZ".equals(parts[i])) {
+            indexBLZ = i;
+          }
+          else if("BIC".equals(parts[i])) {
+            indexBIC = i;
+          }
+        }
+        
+        while((line = read.readLine()) != null) {
+          parts = line.split(";",-1);
+          
+          list.add(new KontoData(parts[indexEndsOnWeekday].equals("true"), parts[indexName], parts[indexPattern], parts[indexOrder], parts[indexBLZ].split(","), parts[indexBIC].split(",")));
+        }
+        
+      }catch(IOException ioe) {
+        ioe.printStackTrace();
+      }
       
       mPredefined = new SelectInput(list, null);
       mPredefined.setName("Bank-Profile:");
@@ -350,7 +402,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
         if(((String)getPatternFileName().getValue()).equals(VALUE_DEFAULT_PATTERN_NAME) ||
             !isValid(getPatternFileName()) || !isValid(getMatchOrder())) {
           for(KontoData kontoData : list) {
-            if(kontoData.hasBLZ(mKonto)) {
+            if(kontoData.hasBIC(mKonto) || kontoData.hasBLZ(mKonto)) {
               mPredefined.setPreselected(kontoData);
               break;
             }
@@ -375,9 +427,9 @@ public class DialogConfigBankStatement extends AbstractDialog {
     return mAlwaysOnWeekdayEnd;
   }
   
-  private synchronized DirectoryInput getDirectorySource() {
+  private synchronized DirectoryInput getDirectorySource() throws RemoteException {
     if(mDirectorySource == null) {
-      mDirectorySource = new DirectoryInput(System.getProperty("user.home")+File.separator+"Downloads");
+      mDirectorySource = new DirectoryInput(mKonto.getMeta(KEY_DOWNLOAD_PATH, System.getProperty("user.home")+File.separator+"Downloads"));
       mDirectorySource.setName("Download-Ordner:");
       mDirectorySource.setMandatory(true);
     }
@@ -399,6 +451,39 @@ public class DialogConfigBankStatement extends AbstractDialog {
       mPatternFileName = new TextInput(mKonto.getMeta(KEY_PATTERN_NAME, VALUE_DEFAULT_PATTERN_NAME));
       mPatternFileName.setName("Datei-Pattern:");
       mPatternFileName.setMandatory(true);
+      
+      mValidationMap.put(mPatternFileName, new InputValidator() {
+        @Override
+        public boolean isValid(Input input, boolean checkEmpty) {
+          String text = (String)input.getValue();
+          
+          int openingBrackets = 0;
+          int closingBrackets = 0;
+          int dCount = 0;
+          
+          char lastChar = 'a';
+          char beforeLast = 'a';
+          
+          for(int i = 0; i < text.length(); i++) {
+            if(lastChar != '\\') {
+              if(text.charAt(i) == '(') {
+                openingBrackets++;
+              }
+              else if(text.charAt(i) == ')') {
+                closingBrackets++;
+              }
+            }
+            else if(beforeLast == '(' && text.charAt(i) == 'd') {
+              dCount++;
+            }
+            
+            beforeLast = lastChar;
+            lastChar = text.charAt(i);
+          }
+          
+          return openingBrackets >= 2 && closingBrackets >= 2 && openingBrackets == closingBrackets && dCount >= 2;
+        }
+      });
     }
     
     return mPatternFileName;
@@ -410,6 +495,15 @@ public class DialogConfigBankStatement extends AbstractDialog {
       mMatchOrder.setName("Match-Reihenfolge:");
       mMatchOrder.setHint("Reihenfolge der Matching-Groups für {jahr},{monat},{tag},{nummer}, z.B.: {jahr},{monat},{nummer}");
       mMatchOrder.setMandatory(true);
+      
+      mValidationMap.put(mMatchOrder, new InputValidator() {
+        @Override
+        public boolean isValid(final Input input, final boolean checkEmpty) {
+          String text = (String) input.getValue();
+          
+          return Placeholder.get(Placeholder.TYPE_YEAR).textContainsMe(text) && (Placeholder.get(Placeholder.TYPE_MONTH).textContainsMe(text) || Placeholder.get(Placeholder.TYPE_NUMBER).textContainsMe(text));
+        }
+      });
     }
     
     return mMatchOrder;
@@ -441,18 +535,16 @@ public class DialogConfigBankStatement extends AbstractDialog {
    */
   private static final class KontoData implements GenericObject {
     private String[] mBLZ;
+    private String[] mBIC;
     private String mName;
     private String mFilePattern;
     private String mMatchOrder;
     private boolean mEndsOnWeekday;
     
-    private KontoData(final String name, final String filePattern, final String matchOrder, final String... BLZ) {
-      this(false,name,filePattern,matchOrder,BLZ);
-    }
-    
-    private KontoData(boolean endsOnWeekday, final String name, final String filePattern, final String matchOrder, final String... BLZ) {
+    private KontoData(boolean endsOnWeekday, final String name, final String filePattern, final String matchOrder, final String[] BLZ, final String[] BIC) {
       mEndsOnWeekday = endsOnWeekday;
       mBLZ = BLZ;
+      mBIC = BIC;
       mName = name;
       mFilePattern = filePattern;
       mMatchOrder = matchOrder;
@@ -499,8 +591,10 @@ public class DialogConfigBankStatement extends AbstractDialog {
       boolean result = false;
       
       if(mBLZ != null) {
+        final String kontoBLZ = konto.getBLZ();
+        
         for(String blz : mBLZ) {
-          if(blz.equals(konto.getBLZ())) {
+          if(!blz.trim().isEmpty() && blz.equals(kontoBLZ)) {
             result = true;
             break;
           }
@@ -509,5 +603,25 @@ public class DialogConfigBankStatement extends AbstractDialog {
       
       return result;
     }
+    
+    private boolean hasBIC(final Konto konto) throws RemoteException {
+      boolean result = false;
+      
+      if(mBIC != null) {
+        final String kontoBIC = konto.getBic();
+        
+        for(String bic : mBIC) {
+          if(!bic.trim().isEmpty() && kontoBIC.startsWith(bic)) {
+            result = true;
+          }
+        }
+      }
+      
+      return result;
+    }
+  }
+  
+  private static interface InputValidator {
+    public boolean isValid(final Input input, boolean checkEmpty);
   }
 }
