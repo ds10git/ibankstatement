@@ -640,10 +640,10 @@ public class ContextMenuImportBankStatement implements Extension {
         else if(number > oNumber) {
           return 1;
         }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
           return -1;
         }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
           return 1;
         }
         else {
@@ -663,10 +663,10 @@ public class ContextMenuImportBankStatement implements Extension {
         else if(day > oDay) {
           return 1;
         }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
           return -1;
         }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
           return 1;
         }
         else {
@@ -686,10 +686,10 @@ public class ContextMenuImportBankStatement implements Extension {
         else if(number > oNumber) {
           return 1;
         }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
           return -1;
         }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
           return 1;
         }
         else {
@@ -703,20 +703,20 @@ public class ContextMenuImportBankStatement implements Extension {
         else if(number > oNumber) {
           return 1;
         }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
           return -1;
         }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
           return 1;
         }
         else {
           return 0;
         }
       }
-      else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+      else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
         return -1;
       }
-      else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+      else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
         return 1;
       }
       
