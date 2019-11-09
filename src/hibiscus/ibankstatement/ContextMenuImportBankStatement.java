@@ -197,6 +197,7 @@ public class ContextMenuImportBankStatement implements Extension {
                   Collections.sort(filesFound);
   
                   for(FileInfo info : filesFound) {
+                    System.out.println(info);
                     // open import of bank statement for current Konto and current pdfFile
                     importKontoauszug(info.mPdfFile, konto, info.mYear, info.mMonth, info.mDay, info.mNumber, konto.getMeta(DialogConfigBankStatement.KEY_RENAME_PREFIX, ""), type[0], type[1]);
                   }
@@ -696,6 +697,23 @@ public class ContextMenuImportBankStatement implements Extension {
           return 0;
         }
       }
+      else if(month != null && oMonth != null) {
+        if(month < oMonth) {
+          return -1;
+        }
+        else if(month > oMonth) {
+          return 1;
+        }
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+          return -1;
+        }
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+          return 1;
+        }
+        else {
+          return 0;
+        }
+      }
       else if(number != null && oNumber != null) {
         if(number < oNumber) {
           return -1;
@@ -721,6 +739,11 @@ public class ContextMenuImportBankStatement implements Extension {
       }
       
       return 0;
+    }
+    
+    @Override
+    public String toString() {
+      return mPdfFile != null ? mPdfFile.getName() : "NO_FILE" + " Year: " +getYear() + " Month: " + getMonth()+" Day: "+getDay()+" Number: "+getNumber();
     }
   }
 }
