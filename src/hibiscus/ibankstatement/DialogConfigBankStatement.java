@@ -39,9 +39,9 @@ import org.eclipse.swt.widgets.Shell;
 import de.willuhn.datasource.GenericObject;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.dialogs.AbstractDialog;
-import de.willuhn.jameica.gui.input.CheckboxInput;
 import de.willuhn.jameica.gui.input.DirectoryInput;
 import de.willuhn.jameica.gui.input.Input;
+import de.willuhn.jameica.gui.input.LabelInput;
 import de.willuhn.jameica.gui.input.SelectInput;
 import de.willuhn.jameica.gui.input.TextInput;
 import de.willuhn.jameica.gui.parts.Button;
@@ -57,7 +57,7 @@ import de.willuhn.util.ApplicationException;
  * A class to configure the profile for importing of bank statement for a Konto.
  * @author René Mach
  */
-public class DialogConfigBankStatement extends AbstractDialog {
+public class DialogConfigBankStatement extends AbstractDialog<Object> {
   private static final String[] mAttributes = {"name"};
   
   static final String KEY_DOWNLOAD_PATH = ContextMenuImportBankStatement.class.getCanonicalName()+":Download_Path";
@@ -65,14 +65,15 @@ public class DialogConfigBankStatement extends AbstractDialog {
   static final String KEY_PATTERN_NAME = ContextMenuImportBankStatement.class.getCanonicalName()+":Name_Pattern";
   static final String KEY_MATCH_ORDER = ContextMenuImportBankStatement.class.getCanonicalName()+":Match_Order";
   static final String KEY_RENAME_PREFIX = ContextMenuImportBankStatement.class.getCanonicalName()+":Name_rename-prefix";
-  static final String KEY_ALWAYS_ON_WEEKDAY_END = ContextMenuImportBankStatement.class.getCanonicalName()+":Ends_Always_On_Week_Day";
+  
+  static final String LEGACY_KEY_ALWAYS_ON_WEEKDAY_END = ContextMenuImportBankStatement.class.getCanonicalName()+":Ends_Always_On_Week_Day";
   
   static final String KEY_PROPERTY_KONTEN = ContextMenuImportBankStatement.class.getCanonicalName()+":Konten";
   
   private static final String VALUE_DEFAULT_PATTERN_NAME = "({\\d{4})-({\\d{2})-({\\d{2})_{konto}_({\\d{2}})\\.pdf";
   
   private final static int WIDTH = 870;
-  private final static int HEIGHT = 490;
+  private final static int HEIGHT = 590;
   
   private HashMap<Input, InputValidator> mValidationMap;
   
@@ -83,7 +84,6 @@ public class DialogConfigBankStatement extends AbstractDialog {
   
   private TextInput mPatternFileName;
   private TextInput mMatchOrder;
-  private CheckboxInput mAlwaysOnWeekdayEnd;
   private TextInput mRenamePrefix;
   
   private DirectoryInput mDirectorySource;
@@ -156,10 +156,13 @@ public class DialogConfigBankStatement extends AbstractDialog {
     c1.addInput(getPredefinedInput());
     c1.addSeparator();
     
+    LabelInput help = new LabelInput("Rechenoperationen im Platzhalter:\n      Addition/Subtraktion z.B.: {monat_+1},{tag_-4}\n      ACHTUNG: Keine Plausibilitätsprüfung der berechneten Werte.\nSteuerbefehle im Platzhalter:\n      Auszug endet immer an einem Tag der Woche z.B.: {tag_edow7}=Sonntag, {tag_edow1}=Montag\n      Auszug endet am letzten Wochentag des Monats: {monat_eolwd}");
+    help.setName(" ");
+    
     Container c = new SimpleContainer(parent);
     c.addInput(getPatternFileName());
     c.addInput(getMatchOrder());
-    c.addLabelPair(" ", getAlwaysOnWeekdayEnd());
+    c.addInput(help);
     c.addInput(getRenamePrefix());
     c.addInput(getDirectorySource());
     c.addInput(getDirectoryTarget());
@@ -274,7 +277,8 @@ public class DialogConfigBankStatement extends AbstractDialog {
             mKonto.setMeta(KEY_PATTERN_NAME, String.valueOf(getPatternFileName().getValue()));
             mKonto.setMeta(KEY_MATCH_ORDER, String.valueOf(getMatchOrder().getValue()));
             mKonto.setMeta(KEY_RENAME_PREFIX, String.valueOf(getRenamePrefix().getValue()));
-            mKonto.setMeta(KEY_ALWAYS_ON_WEEKDAY_END, String.valueOf(getAlwaysOnWeekdayEnd().getValue()));
+            
+            mKonto.setMeta(LEGACY_KEY_ALWAYS_ON_WEEKDAY_END, null);
           } catch (RemoteException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -313,7 +317,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
             mKonto.setMeta(KEY_PATTERN_NAME, null);
             mKonto.setMeta(KEY_MATCH_ORDER, null);
             mKonto.setMeta(KEY_RENAME_PREFIX, null);
-            mKonto.setMeta(KEY_ALWAYS_ON_WEEKDAY_END, null);
+            mKonto.setMeta(LEGACY_KEY_ALWAYS_ON_WEEKDAY_END, null);
             
             close();
           } catch (RemoteException e) {
@@ -341,7 +345,6 @@ public class DialogConfigBankStatement extends AbstractDialog {
         int indexName = -1;
         int indexPattern = -1;
         int indexOrder = -1;
-        int indexEndsOnWeekday = -1;
         int indexBLZ = -1;
         int indexBIC = -1;
         
@@ -355,9 +358,6 @@ public class DialogConfigBankStatement extends AbstractDialog {
           else if("order".equals(parts[i])) {
             indexOrder = i;
           }
-          else if("ends_on_weekday".equals(parts[i])) {
-            indexEndsOnWeekday = i;
-          }
           else if("BLZ".equals(parts[i])) {
             indexBLZ = i;
           }
@@ -369,7 +369,7 @@ public class DialogConfigBankStatement extends AbstractDialog {
         while((line = read.readLine()) != null) {
           parts = line.split(";",-1);
           
-          list.add(new KontoData(parts[indexEndsOnWeekday].equals("true"), parts[indexName], parts[indexPattern], parts[indexOrder], parts[indexBLZ].split(","), parts[indexBIC].split(",")));
+          list.add(new KontoData(parts[indexName], parts[indexPattern], parts[indexOrder], parts[indexBLZ].split(","), parts[indexBIC].split(",")));
         }
         
       }catch(IOException ioe) {
@@ -389,7 +389,6 @@ public class DialogConfigBankStatement extends AbstractDialog {
             try {
               getPatternFileName().setValue(data.mFilePattern);
               getMatchOrder().setValue(data.mMatchOrder);
-              getAlwaysOnWeekdayEnd().setValue(data.mEndsOnWeekday);
             } catch (RemoteException e) {
               // TODO Auto-generated catch block
               e.printStackTrace();
@@ -415,16 +414,6 @@ public class DialogConfigBankStatement extends AbstractDialog {
     }
     
     return mPredefined;
-  }
-  
-  private synchronized CheckboxInput getAlwaysOnWeekdayEnd() throws RemoteException {
-    if(mAlwaysOnWeekdayEnd == null) {
-      mAlwaysOnWeekdayEnd = new CheckboxInput(mKonto.getMeta(KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true"));
-      mAlwaysOnWeekdayEnd.setName("Kontoauszüge enden immer am letzten Wochentag des Monats");
-      mAlwaysOnWeekdayEnd.setMandatory(true);
-    }
-    
-    return mAlwaysOnWeekdayEnd;
   }
   
   private synchronized DirectoryInput getDirectorySource() throws RemoteException {
@@ -491,7 +480,13 @@ public class DialogConfigBankStatement extends AbstractDialog {
 
   private synchronized TextInput getMatchOrder() throws RemoteException {
     if(mMatchOrder == null) {
-      mMatchOrder = new TextInput(mKonto.getMeta(KEY_MATCH_ORDER, ""));
+      String value = mKonto.getMeta(KEY_MATCH_ORDER, "");
+      
+      if(mKonto.getMeta(LEGACY_KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
+        value = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), "{monat_eolwd}", value);
+      }
+      
+      mMatchOrder = new TextInput(value);
       mMatchOrder.setName("Match-Reihenfolge:");
       mMatchOrder.setHint("Reihenfolge der Matching-Groups für {jahr},{monat},{tag},{nummer}, z.B.: {jahr},{monat},{nummer}");
       mMatchOrder.setMandatory(true);
@@ -500,8 +495,12 @@ public class DialogConfigBankStatement extends AbstractDialog {
         @Override
         public boolean isValid(final Input input, final boolean checkEmpty) {
           String text = (String) input.getValue();
+          boolean hasEndsOnLastDayOfMonth = text.contains("_eolwd}");
+          boolean hasEndsDayOfWeek = text.matches(".*?_edow\\d{1}\\}.*?");
           
-          return Placeholder.get(Placeholder.TYPE_YEAR).textContainsMe(text) && (Placeholder.get(Placeholder.TYPE_MONTH).textContainsMe(text) || Placeholder.get(Placeholder.TYPE_NUMBER).textContainsMe(text));
+          return Placeholder.get(Placeholder.TYPE_YEAR).textContainsMe(text) && (Placeholder.get(Placeholder.TYPE_MONTH).textContainsMe(text) || Placeholder.get(Placeholder.TYPE_NUMBER).textContainsMe(text)) &&
+              (!hasEndsDayOfWeek || !hasEndsOnLastDayOfMonth);
+              
         }
       });
     }
@@ -539,10 +538,8 @@ public class DialogConfigBankStatement extends AbstractDialog {
     private String mName;
     private String mFilePattern;
     private String mMatchOrder;
-    private boolean mEndsOnWeekday;
     
-    private KontoData(boolean endsOnWeekday, final String name, final String filePattern, final String matchOrder, final String[] BLZ, final String[] BIC) {
-      mEndsOnWeekday = endsOnWeekday;
+    private KontoData(final String name, final String filePattern, final String matchOrder, final String[] BLZ, final String[] BIC) {
       mBLZ = BLZ;
       mBIC = BIC;
       mName = name;

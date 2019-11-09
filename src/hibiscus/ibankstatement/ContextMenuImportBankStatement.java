@@ -23,8 +23,9 @@ import java.io.FileFilter;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.rmi.RemoteException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -127,48 +128,78 @@ public class ContextMenuImportBankStatement implements Extension {
                   return Pattern.matches(search, file.getName());
                 });
                 
-                Arrays.sort(pdfFiles);
+                Pattern p = Pattern.compile(pattern.replace("{konto}", konto.getKontonummer()));
+                int type[] = null;
                 
-                //handle all found bank statements for current Konto
-                for(File pdfFile : pdfFiles) {
-                  Pattern p = Pattern.compile(pattern.replace("{konto}", konto.getKontonummer()));
-                  Matcher m = p.matcher(pdfFile.getName());
-
-                  String year = null;
-                  String month = null;
-                  String day = null;
-                  String number = null;
+                {
+                  String[] parts = matchingGroups.split(",");
                   
-                  if(m.find()) {
-                    String[] parts = matchingGroups.split(",");
-                    
-                    for(int i = 0; i < parts.length; i++) {
+                  for(int i = 0; i < parts.length; i++) {
+                    if(!parts[i].trim().isEmpty()) {
+                      Placeholder placeholder = Placeholder.get(parts[i]);
                       
-                      if(!parts[i].trim().isEmpty()) {
-                        Placeholder placeholder = Placeholder.get(parts[i]);
-                        
-                        if(placeholder != null) {
-                          switch(placeholder.getType()) {
-                            case Placeholder.TYPE_YEAR: year = placeholder.getValue(parts[i], m.group(i+1));break;
-                            case Placeholder.TYPE_MONTH: month = placeholder.getValue(parts[i], m.group(i+1));break;
-                            case Placeholder.TYPE_DAY: day = placeholder.getValue(parts[i], m.group(i+1));break;
-                            case Placeholder.TYPE_NUMBER: number = placeholder.getValue(parts[i], m.group(i+1));break;
-                          }
-                        }
-                        else {
-                          switch(i) {
-                            case 0: year = m.group(Integer.parseInt(parts[i]));break;
-                            case 1: month = m.group(Integer.parseInt(parts[i]));break;
-                            case 2: day = m.group(Integer.parseInt(parts[i]));break;
-                            case 3: number = m.group(Integer.parseInt(parts[i]));break;
+                      if(placeholder != null) {
+                        if(placeholder.isPlaceholder(Placeholder.TYPE_MONTH) ||
+                            placeholder.isPlaceholder(Placeholder.TYPE_DAY)) {
+                          type = placeholder.getEndType(parts[i]);
+                          
+                          if(type != null) {
+                            break;
                           }
                         }
                       }
                     }
                   }
                   
-                  // open import of bank statement for current Konto and current pdfFile
-                  importKontoauszug(pdfFile, konto, year, month, day, number, konto.getMeta(DialogConfigBankStatement.KEY_RENAME_PREFIX, ""));
+                  if(type == null) {
+                    type = new int[2];
+                    type[0] = Placeholder.TYPE_END_DEFAULT;
+                    type[1] = -1;
+                  }
+                }
+                
+                final ArrayList<FileInfo> filesFound = new ArrayList<>();
+                
+                //handle all found bank statements for current Konto
+                for(File pdfFile : pdfFiles) {
+                  Matcher m = p.matcher(pdfFile.getName());
+                  
+                  if(m.find()) {
+                    final FileInfo info = new FileInfo();
+                    
+                    String[] parts = matchingGroups.split(",");
+                    
+                    for(int i = 0; i < parts.length; i++) {
+                      if(!parts[i].trim().isEmpty()) {
+                        Placeholder placeholder = Placeholder.get(parts[i]);
+                        
+                        if(placeholder != null) {
+                          switch(placeholder.getType()) {
+                            case Placeholder.TYPE_YEAR: info.mYear = placeholder.getValue(parts[i], m.group(i+1));break;
+                            case Placeholder.TYPE_MONTH: info.mMonth = placeholder.getValue(parts[i], m.group(i+1));break;
+                            case Placeholder.TYPE_DAY: info.mDay = placeholder.getValue(parts[i], m.group(i+1));break;
+                            case Placeholder.TYPE_NUMBER: info.mNumber = placeholder.getValue(parts[i], m.group(i+1));break;
+                          }
+                        }
+                      }
+                    }
+                    
+                    if(info.mYear != null && (info.mMonth != null || info.mNumber != null)) {
+                      info.mPdfFile = pdfFile;
+                      filesFound.add(info);
+                    }
+                  }                  
+                }
+                
+                if(!filesFound.isEmpty()) {
+                  // we have to sort the files in order of the bank statement
+                  // so the import order matches the order of the bank statements
+                  Collections.sort(filesFound);
+  
+                  for(FileInfo info : filesFound) {
+                    // open import of bank statement for current Konto and current pdfFile
+                    importKontoauszug(info.mPdfFile, konto, info.mYear, info.mMonth, info.mDay, info.mNumber, konto.getMeta(DialogConfigBankStatement.KEY_RENAME_PREFIX, ""), type[0], type[1]);
+                  }
                 }
               }
             } catch (RemoteException e1) {
@@ -202,7 +233,14 @@ public class ContextMenuImportBankStatement implements Extension {
     return cal;
   }
   
-  private void importKontoauszug(final File inFile, final Konto konto, final String year, String month, String day, String number, String renamePrefix) throws ApplicationException {
+  private static final Calendar setCalendarDate(Date date) {
+    Calendar cal = Calendar.getInstance();
+    cal.setTime(date);
+    
+    return cal;
+  }
+  
+  private void importKontoauszug(final File inFile, final Konto konto, final String year, String month, String day, String number, String renamePrefix, final int typeEndDate, final int endDayOfWeek) throws ApplicationException {
     try {
       if(month == null) {
         Calendar tmp = Calendar.getInstance();
@@ -243,15 +281,22 @@ public class ContextMenuImportBankStatement implements Extension {
       
       final Calendar cal = setCalendarDate(Integer.parseInt(year), Calendar.JANUARY, 1);
       
+      final Calendar cal2 = setCalendarDate(Integer.parseInt(year), Calendar.DECEMBER, 31);
+      
       Kontoauszug last = null;
       
-      GenericIterator<?> items = KontoauszugPdfUtil.getList(konto,cal.getTime(),null,false,false);
+      GenericIterator<?> items = KontoauszugPdfUtil.getList(konto,cal.getTime(),cal2.getTime(),false,true);
       
       // find last Kontoauszug for year matched of inFile
       while(items.hasNext()) {
         Kontoauszug test = (Kontoauszug)items.next();
         
-        if(last == null || test.getNummer() > last.getNummer()) {
+        // known Kontoauszug, no need to add
+        if(test.getDateiname().endsWith(inFile.getName())) {
+          return;
+        }
+        
+        if(last == null || (test.getNummer() > last.getNummer() && test.getVon() != null && last.getVon() != null && last.getVon().compareTo(test.getVon()) <= 0)) {
           last = test;
         }
       }
@@ -263,7 +308,10 @@ public class ContextMenuImportBankStatement implements Extension {
       // and get it's number for calculation of next number
       if(last != null) {
         bisLast = last.getBis();
-        nummerLast = last.getNummer();
+        
+        if(last.getVon() == null || setCalendarDate(last.getVon()).get(Calendar.YEAR) == Integer.parseInt(year)) {
+          nummerLast = last.getNummer();
+        }
       }
       
       // if last for matched year was not found, we are in a new year,
@@ -303,6 +351,18 @@ public class ContextMenuImportBankStatement implements Extension {
       
       // only add unknown bank statements
       if(!known) {
+        if(month != null) {
+          try {
+            int monthVal = Integer.parseInt(month);
+            
+            if(monthVal < 1) {
+              month = "1";
+            }else if(monthVal > 12) {
+              month = "12";
+            }
+          }catch(NumberFormatException nfe) {}
+        }
+        
         renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_YEAR), yearInt, renamePrefix);
         renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_NUMBER), num, renamePrefix);
         
@@ -315,7 +375,20 @@ public class ContextMenuImportBankStatement implements Extension {
           startDate = cal.getTime();
         }
         else if(month != null && day != null) {
-          setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, Integer.parseInt(day));
+          int dayVal = Integer.parseInt(day);
+          setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
+          
+          if(dayVal < 1) {
+            cal.add(Calendar.DAY_OF_YEAR, -1);
+          }
+          else if(dayVal > cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
+            cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+          }
+          else {
+            cal.set(Calendar.DAY_OF_MONTH, dayVal);
+          }
+          
           if(cal.get(Calendar.DAY_OF_MONTH) < 10) {
             cal.add(Calendar.MONTH, -1);
             cal.add(Calendar.DAY_OF_YEAR, cal.get(Calendar.DAY_OF_MONTH)-1);
@@ -329,7 +402,20 @@ public class ContextMenuImportBankStatement implements Extension {
         }
         
         if(day != null && month != null) {
-          setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, Integer.parseInt(day));
+          int dayVal = Integer.parseInt(day);
+          setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
+          
+          if(dayVal < 1) {
+            cal.add(Calendar.DAY_OF_YEAR, -1);
+          }
+          else if(dayVal > cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
+            cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+          }
+          else {
+            cal.set(Calendar.DAY_OF_MONTH, dayVal);
+          }
+          
           endDate = cal.getTime();
           renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), cal.get(Calendar.MONTH)+1, renamePrefix);
           renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_DAY), cal.get(Calendar.DAY_OF_MONTH), renamePrefix);
@@ -366,7 +452,7 @@ public class ContextMenuImportBankStatement implements Extension {
           }
         }
         if(endDate != null) {
-          if(konto.getMeta(DialogConfigBankStatement.KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
+          if(typeEndDate == Placeholder.TYPE_END_LAST_WEEKDAY_OF_MONTH || konto.getMeta(DialogConfigBankStatement.LEGACY_KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
             cal.setTime(endDate);
             
             if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
@@ -381,6 +467,21 @@ public class ContextMenuImportBankStatement implements Extension {
             while(m.isHoliday(cal)) {
               cal.add(Calendar.DAY_OF_MONTH, -1);
             }
+            
+            endDate = cal.getTime();
+          }
+          else if(typeEndDate == Placeholder.TYPE_END_DAY_OF_WEEK) {
+            cal.setTime(endDate);
+            
+            int diff = 0;
+            
+            diff = endDayOfWeek - cal.get(Calendar.DAY_OF_WEEK);
+            
+            if(endDayOfWeek == Calendar.SUNDAY && diff != 0) {
+              diff = 8 - cal.get(Calendar.DAY_OF_WEEK);
+            }
+            
+            cal.add(Calendar.DAY_OF_YEAR, diff);
             
             endDate = cal.getTime();
           }
@@ -465,5 +566,161 @@ public class ContextMenuImportBankStatement implements Extension {
       return result;
     }
     
+  }
+  
+  private static final class FileInfo implements Comparable<FileInfo> {
+    private File mPdfFile;
+    
+    private String mYear;
+    private String mMonth;
+    private String mDay;
+    private String mNumber;
+    
+    private int getYear() {
+      return Integer.parseInt(mYear);
+    }
+
+    private Integer getMonth() {
+      if(mMonth != null) {
+        return Integer.parseInt(mMonth);
+      }
+      
+      return null;
+    }
+    
+    private Integer getDay() {
+      if(mDay != null) {
+        return Integer.parseInt(mDay);
+      }
+      
+      return null;
+    }
+    
+    private Integer getNumber() {
+      if(mNumber != null) {
+        return Integer.parseInt(mNumber);
+      }
+      
+      return null;
+    }
+    
+    @Override
+    public int compareTo(FileInfo o) {
+      Integer month = getMonth();
+      Integer oMonth = o.getMonth();
+      
+      Integer day = getDay();
+      Integer oDay = o.getDay();
+
+      Integer number = getNumber();
+      Integer oNumber = o.getNumber();
+
+      if(getYear() < o.getYear()) {
+        return -1;
+      }
+      else if(getYear() > o.getYear()) {
+        return 1;
+      }
+      else if(month != null && oMonth != null && day != null && oDay != null && number != null && oNumber != null) {
+        if(month < oMonth) {
+          return -1;
+        }
+        else if(month > oMonth) {
+          return 1;
+        }
+        else if(day < oDay) {
+          return -1;
+        }
+        else if(day > oDay) {
+          return 1;
+        }
+        else if(number < oNumber) {
+          return -1;
+        }
+        else if(number > oNumber) {
+          return 1;
+        }
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+          return -1;
+        }
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+          return 1;
+        }
+        else {
+          return 0;
+        }
+      }
+      else if(month != null && oMonth != null && day != null && oDay != null) {
+        if(month < oMonth) {
+          return -1;
+        }
+        else if(month > oMonth) {
+          return 1;
+        }
+        else if(day < oDay) {
+          return -1;
+        }
+        else if(day > oDay) {
+          return 1;
+        }
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+          return -1;
+        }
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+          return 1;
+        }
+        else {
+          return 0;
+        }
+      }
+      else if(month != null && oMonth != null && number != null && oNumber != null) {
+        if(month < oMonth) {
+          return -1;
+        }
+        else if(month > oMonth) {
+          return 1;
+        }
+        else if(number < oNumber) {
+          return -1;
+        }
+        else if(number > oNumber) {
+          return 1;
+        }
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+          return -1;
+        }
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+          return 1;
+        }
+        else {
+          return 0;
+        }
+      }
+      else if(number != null && oNumber != null) {
+        if(number < oNumber) {
+          return -1;
+        }
+        else if(number > oNumber) {
+          return 1;
+        }
+        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+          return -1;
+        }
+        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+          return 1;
+        }
+        else {
+          return 0;
+        }
+      }
+      else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+        return -1;
+      }
+      else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+        return 1;
+      }
+      
+      return 0;
+    }
   }
 }

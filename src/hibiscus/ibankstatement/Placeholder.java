@@ -18,6 +18,7 @@
  */
 package hibiscus.ibankstatement;
 
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,6 +32,10 @@ public class Placeholder {
   static final int TYPE_MONTH = 2;
   static final int TYPE_DAY = 3;
   static final int TYPE_NUMBER = 4;
+
+  static final int TYPE_END_DEFAULT = 0;
+  static final int TYPE_END_LAST_WEEKDAY_OF_MONTH = 1;
+  static final int TYPE_END_DAY_OF_WEEK = 2;
   
   static final Placeholder[] PLACEHOLDER= {
       new Placeholder(Placeholder.TYPE_YEAR, "{year}", "{jahr}"),
@@ -71,6 +76,49 @@ public class Placeholder {
   
   public int getType() {
     return mType;
+  }
+  
+  public int[] getEndType(String value) {
+    int result[] = null;
+    
+    try {
+      final Matcher m = Pattern.compile(getPattern()).matcher(value);
+      
+      if(m.find()) {
+        String group2 = m.group(2).trim();
+        
+        if(!group2.trim().isEmpty()) {
+          if(mType == TYPE_MONTH && group2.equals("_eolwd")) {
+            result = new int[2];
+            result[0] = TYPE_END_LAST_WEEKDAY_OF_MONTH;
+            result[1] = -1;
+            
+          }
+          else if(mType == TYPE_DAY && group2.startsWith("_edow")) {
+            try {
+              int day = Integer.parseInt(group2.substring(5))+1;
+              
+              if(day == 8) {
+                day = Calendar.SUNDAY;
+              }
+              
+              if(day >= Calendar.SUNDAY && day <= Calendar.SATURDAY) {
+                result = new int[2];
+                result[0] = TYPE_END_DAY_OF_WEEK;
+                result[1] = day;
+              }
+            }catch(NumberFormatException nfe) {
+              //ignore
+            }
+          }
+        }
+      }
+      
+    }catch(NumberFormatException nfe) {
+      nfe.printStackTrace();
+    }
+    
+    return result;
   }
   
   private String getPattern() {
