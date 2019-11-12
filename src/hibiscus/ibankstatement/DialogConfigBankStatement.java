@@ -152,11 +152,11 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   protected void paint(Composite parent) throws Exception {
     Container c1 = new SimpleContainer(parent);
     
-    c1.addText("Der Datei-Pattern-Eintrag erlaubt die Platzhalter {konto} und {kennung}, unter Matching-Groups ist die Reihenfolge der Matching-Groups im Datei-Pattern einzutragen z.B.: {jahr},{monat},{tag},{nummer}, nicht vorkommende Werte werden weggelassen. Mit dem Umbenennen-Prefix lässt sich ein Prefix festlegen, der dem Dateiname des Kontoauszugs voran gestellt wird. Mögliche Platzhalter: {jahr}, {monat}, {tag} und {nummer}\n", true);
+    c1.addText("Der Datei-Pattern-Eintrag erlaubt die Platzhalter {konto} und {kennung}, unter Matching-Groups ist die Reihenfolge der Matching-Groups im Datei-Pattern einzutragen z.B.: {jahr},{monat},{tag},{nummer}, nicht vorkommende Werte werden weggelassen. Mit dem Umbenennen-Prefix lässt sich ein Prefix festlegen, der dem Dateiname des Kontoauszugs voran gestellt wird. Mögliche Platzhalter: {jahr}, {monat}, {tag}, {nummer} und {nummerJahr}\n", true);
     c1.addInput(getPredefinedInput());
     c1.addSeparator();
     
-    LabelInput help = new LabelInput("Rechenoperationen im Platzhalter:\n      Addition/Subtraktion z.B.: {monat_+1},{tag_-4}\n      ACHTUNG: Keine Plausibilitätsprüfung der berechneten Werte.\nSteuerbefehle im Platzhalter:\n      Auszug endet immer an einem Tag der Woche z.B.: {tag_edow7}=Sonntag, {tag_edow1}=Montag\n      Auszug endet am letzten Wochentag des Monats: {monat_eolwd}\n      Auszug endet immer am gleichen Tag des Monats: z.B.: {monat_edom28}=28. des Monats\n      Auszug beginnt am End-Datum des vorigen Auszugs: {monat_sold} oder {nummer_sold}\n      Auszug beginnt immer am gleichen Tag des Monats: z.B.: {monat_sdom13}=13. des Monats\n      WICHTIG: Es kann nur ein Platzhalter Steuerbefehle enthalten, aber durchaus mehrere, z.B. {monat_sdom1;edom31}");
+    LabelInput help = new LabelInput("Rechenoperationen im Platzhalter:\n      Addition/Subtraktion z.B.: {monat_+1},{tag_-4}\n      ACHTUNG: Keine Plausibilitätsprüfung der berechneten Werte.\nSteuerbefehle im Platzhalter:\n      Auszug endet immer an einem Tag der Woche z.B.: {tag_{0}7}=Sonntag, {tag_{0}1}=Montag\n      Auszug endet am letzten Wochentag des Monats: {monat_{1}}\n      Auszug endet immer am gleichen Tag des Monats: z.B.: {monat_{2}28}=28. des Monats\n      Auszug beginnt am End-Datum des vorigen Auszugs: {monat_{3}} oder {nummer_{3}}\n      Auszug beginnt immer am gleichen Tag des Monats: z.B.: {monat_{4}13}=13. des Monats\n      WICHTIG: Es kann nur ein Platzhalter Steuerbefehle enthalten, aber durchaus mehrere, z.B. {monat_{4}1;{2}31}".replace("{0}", Placeholder.KEY_END_DAY_OF_WEEK).replace("{1}", Placeholder.KEY_END_LAST_WEEKDAY_OF_MONTH).replace("{2}", Placeholder.KEY_END_DAY_OF_MONTH).replace("{3}", Placeholder.KEY_START_ON_LAST_DATE).replace("{4}", Placeholder.KEY_START_DAY_OF_MONTH));
     help.setName(" ");
     
     Container c = new SimpleContainer(parent);
@@ -483,23 +483,28 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
       String value = mKonto.getMeta(KEY_MATCH_ORDER, "");
       
       if(mKonto.getMeta(LEGACY_KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
-        value = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), "{monat_eolwd}", value);
+        value = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), "{monat_"+Placeholder.KEY_END_LAST_WEEKDAY_OF_MONTH+"}", value);
       }
       
       mMatchOrder = new TextInput(value);
       mMatchOrder.setName("Match-Reihenfolge:");
-      mMatchOrder.setHint("Reihenfolge der Matching-Groups für {jahr},{monat},{tag},{nummer}, z.B.: {jahr},{monat},{nummer}");
+      mMatchOrder.setHint("Reihenfolge der Matching-Groups für {jahr},{monat},{tag},{nummer},{nummerJahr}, z.B.: {jahr},{monat},{nummer}");
       mMatchOrder.setMandatory(true);
       
       mValidationMap.put(mMatchOrder, new InputValidator() {
         @Override
         public boolean isValid(final Input input, final boolean checkEmpty) {
           String text = (String) input.getValue();
-          boolean hasEndsOnLastDayOfMonth = text.contains("_eolwd}");
-          boolean hasEndsDayOfWeek = text.matches(".*?_edow\\d{1}\\}.*?");
+          boolean hasEndsOnLastDayOfMonth = text.contains("_"+Placeholder.KEY_END_LAST_WEEKDAY_OF_MONTH) || text.contains(";"+Placeholder.KEY_END_LAST_WEEKDAY_OF_MONTH);
+          boolean hasEndsDayOfWeek = text.matches(".*?_"+Placeholder.KEY_END_DAY_OF_WEEK+"\\d{1}.*?") || text.matches(".*?;"+Placeholder.KEY_END_DAY_OF_WEEK+"\\d{1}.*?");
+          boolean hasEndsOnDayOfMonth = text.matches(".*?_"+Placeholder.KEY_END_DAY_OF_MONTH+"\\d{1,2}.*?") || text.matches(".*?;"+Placeholder.KEY_END_DAY_OF_MONTH+"\\d{1,2}.*?");
           
-          return Placeholder.get(Placeholder.TYPE_YEAR).textContainsMe(text) && (Placeholder.get(Placeholder.TYPE_MONTH).textContainsMe(text) || Placeholder.get(Placeholder.TYPE_NUMBER).textContainsMe(text)) &&
-              (!hasEndsDayOfWeek || !hasEndsOnLastDayOfMonth);
+          boolean hasStartsOnLastDate = text.contains("_"+Placeholder.KEY_START_ON_LAST_DATE) || text.contains(";"+Placeholder.KEY_START_ON_LAST_DATE);
+          boolean hasStartsOnDayOfMonth = text.matches(".*?_"+Placeholder.KEY_START_DAY_OF_MONTH+"\\d{1,2}.*?") || text.matches(".*?;"+Placeholder.KEY_START_DAY_OF_MONTH+"\\d{1,2}.*?");
+          
+          return (Placeholder.get(Placeholder.TYPE_YEAR).textContainsMe(text) || Placeholder.get(Placeholder.TYPE_NUMBER_YEAR).textContainsMe(text)) && (Placeholder.get(Placeholder.TYPE_MONTH).textContainsMe(text) || Placeholder.get(Placeholder.TYPE_NUMBER).textContainsMe(text)) &&
+              ((!hasEndsDayOfWeek || !hasEndsOnLastDayOfMonth) && (!hasEndsDayOfWeek || !hasEndsOnDayOfMonth) && (!hasEndsOnDayOfMonth || !hasEndsOnLastDayOfMonth)) &&
+              (!hasStartsOnLastDate || !hasStartsOnDayOfMonth);
               
         }
       });

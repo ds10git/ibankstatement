@@ -28,10 +28,25 @@ import java.util.regex.Pattern;
  * @author René Mach
  */
 public class Placeholder {
+  static final String KEY_START_ON_LAST_DATE = "sold";
+  static final String KEY_END_LAST_WEEKDAY_OF_MONTH = "eolwd";
+  static final String KEY_START_DAY_OF_MONTH = "sdom";
+  static final String KEY_END_DAY_OF_MONTH = "edom";
+  static final String KEY_END_DAY_OF_WEEK = "edow";
+  
+  private static final String[] KEYS = {
+      KEY_END_DAY_OF_MONTH,
+      KEY_END_DAY_OF_WEEK,
+      KEY_END_LAST_WEEKDAY_OF_MONTH,
+      KEY_START_DAY_OF_MONTH,
+      KEY_START_ON_LAST_DATE
+  };
+  
   static final int TYPE_YEAR = 1;
   static final int TYPE_MONTH = 2;
   static final int TYPE_DAY = 3;
   static final int TYPE_NUMBER = 4;
+  static final int TYPE_NUMBER_YEAR = 5;
   
   static final int TYPE_ACCOUNT = 10;
   static final int TYPE_ID_USER = 11;
@@ -49,6 +64,7 @@ public class Placeholder {
       new Placeholder(Placeholder.TYPE_MONTH, "{month}", "{monat}"),
       new Placeholder(Placeholder.TYPE_DAY, "{day}", "{tag}"),
       new Placeholder(Placeholder.TYPE_NUMBER, "{number}", "{nummer}"),
+      new Placeholder(Placeholder.TYPE_NUMBER_YEAR, "{numberYear}", "{nummerJahr}"),
       new Placeholder(Placeholder.TYPE_ACCOUNT, "{account}", "{konto}"),
       new Placeholder(Placeholder.TYPE_ID_USER, "{userid}", "{kennung}"),
   };
@@ -100,20 +116,20 @@ public class Placeholder {
           final String[] parts = group2.substring(1).split(";");
           
           for(String part : parts) {
-            if(mType == TYPE_MONTH && part.equals("eolwd")) {
+            if(mType == TYPE_MONTH && part.equals(KEY_END_LAST_WEEKDAY_OF_MONTH)) {
               result.mEndType = TYPE_END_LAST_WEEKDAY_OF_MONTH;
             }
-            else if((mType == TYPE_MONTH || mType == TYPE_NUMBER) && part.equals("sold")) {
+            else if((mType == TYPE_MONTH || mType == TYPE_NUMBER) && part.equals(KEY_START_ON_LAST_DATE)) {
               result.mStartType = TYPE_START_ON_LAST_DATE;
             }
-            else if(mType == TYPE_MONTH && part.startsWith("sdom")) {
+            else if(mType == TYPE_MONTH && part.startsWith(KEY_START_DAY_OF_MONTH)) {
               try {
                 int day = Integer.parseInt(part.substring(4));
                 result.mStartType = TYPE_START_DAY_OF_MONTH;
                 result.mStartDayValue = day;
               }catch(NumberFormatException nfe) {}
             }
-            else if(mType == TYPE_MONTH && part.startsWith("edom")) {
+            else if(mType == TYPE_MONTH && part.startsWith(KEY_END_DAY_OF_MONTH)) {
               try {
                 int day = Integer.parseInt(part.substring(4));
                 
@@ -121,7 +137,7 @@ public class Placeholder {
                 result.mEndDayValue = day;
               }catch(NumberFormatException nfe) {}
             }
-            else if(mType == TYPE_DAY && part.startsWith("edow")) {
+            else if(mType == TYPE_DAY && part.startsWith(KEY_END_DAY_OF_WEEK)) {
               try {
                 int day = Integer.parseInt(part.substring(4))+1;
                 
@@ -159,25 +175,33 @@ public class Placeholder {
       while(m.find(pos)) {
         String group1 = m.group(1);
         String group2 = m.group(2);
-        String replaceValue = replace;
+        String replaceValue = "";
         
-        if(!group2.trim().isEmpty()) {
-          try {
-            if(group2.startsWith("_l")) {
-              int value = Integer.parseInt(group2.substring(2).trim());
-              
-              if(value < replace.length()) {
-                replaceValue = replace.substring(0, value);
+        if(group2.startsWith("_")) {
+          String[] parts = group2.substring(1).split(";");
+          
+          for(String part : parts) {
+            try {
+              if(part.startsWith("l")) {
+                int value = Integer.parseInt(part.substring(2).trim());
+                
+                if(value < replace.length()) {
+                  replaceValue += replace.substring(0, value);
+                }
               }
-            }
-            else if(group2.startsWith("_r")) {
-              int value = Integer.parseInt(group2.substring(2).trim());
-              
-              if(value < replace.length()) {
-                replaceValue = replace.substring(replace.length()-value);
+              else if(part.startsWith("r")) {
+                int value = Integer.parseInt(part.substring(2).trim());
+                
+                if(value < replace.length()) {
+                  replaceValue += replace.substring(replace.length()-value);
+                }
               }
-            }
-          }catch(NumberFormatException e) {}
+            }catch(NumberFormatException e) {}
+          }
+        }
+        
+        if(replaceValue.isEmpty()) {
+          replaceValue = replace;
         }
         
         result = result.replace(group1, replaceValue); 
@@ -209,16 +233,31 @@ public class Placeholder {
       final Matcher m = Pattern.compile(getPattern()).matcher(subject);
       
       if(m.find()) {
-        String group2 = m.group(2);
+        String group2 = m.group(2).trim();
         
-        if(!group2.trim().isEmpty()) {
-          try {
-            int value = Integer.parseInt(group2.substring(1).trim());
-            int toCalc = Integer.parseInt(replace);
+        if(group2.startsWith("_")) {
+          String[] parts = group2.substring(1).split(";");
+          
+          for(String part : parts) {
+            boolean keyFound = false;
             
-            replace = String.valueOf(toCalc + value);
-          }catch(NumberFormatException nfe) {
-            // ignore
+            for(String key : KEYS) {
+              if(part.startsWith(key)) {
+                keyFound = true;
+                break;
+              }
+            }
+            
+            if(!keyFound) {
+              try {
+                int value = Integer.parseInt(part.trim());
+                int toCalc = Integer.parseInt(replace);
+                
+                replace = String.valueOf(toCalc + value);
+              }catch(NumberFormatException nfe) {
+                // ignore
+              }
+            }
           }
         }
       }

@@ -56,7 +56,7 @@ public class DialogDateSelection extends AbstractDialog<Date> {
   private static final String[] NAMES = {"End-Datum","Start-Datum"};
   
   private final static int WIDTH = 640;
-  private final static int HEIGHT = 270;
+  private final static int HEIGHT = 280;
   
   private int mType;
   

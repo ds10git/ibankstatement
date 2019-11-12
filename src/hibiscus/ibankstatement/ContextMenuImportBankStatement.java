@@ -175,12 +175,13 @@ public class ContextMenuImportBankStatement implements Extension {
                             case Placeholder.TYPE_MONTH: info.mMonth = placeholder.getValue(parts[i], m.group(i+1));break;
                             case Placeholder.TYPE_DAY: info.mDay = placeholder.getValue(parts[i], m.group(i+1));break;
                             case Placeholder.TYPE_NUMBER: info.mNumber = placeholder.getValue(parts[i], m.group(i+1));break;
+                            case Placeholder.TYPE_NUMBER_YEAR: info.mNumberYear = placeholder.getValue(parts[i], m.group(i+1));break;
                           }
                         }
                       }
                     }
                     
-                    if(info.mYear != null && (info.mMonth != null || info.mNumber != null)) {
+                    if((info.mYear != null || info.mNumberYear != null) && (info.mMonth != null || info.mNumber != null)) {
                       info.mPdfFile = pdfFile;
                       filesFound.add(info);
                     }
@@ -194,7 +195,7 @@ public class ContextMenuImportBankStatement implements Extension {
   
                   for(FileInfo info : filesFound) {
                     // open import of bank statement for current Konto and current pdfFile
-                    importKontoauszug(info.mPdfFile, konto, info.mYear, info.mMonth, info.mDay, info.mNumber, konto.getMeta(DialogConfigBankStatement.KEY_RENAME_PREFIX, ""), dateConfiguration);
+                    importKontoauszug(info.mPdfFile, konto, info, konto.getMeta(DialogConfigBankStatement.KEY_RENAME_PREFIX, ""), dateConfiguration);
                   }
                 }
               }
@@ -236,7 +237,12 @@ public class ContextMenuImportBankStatement implements Extension {
     return cal;
   }
   
-  private void importKontoauszug(final File inFile, final Konto konto, String year, String month, String day, String number, String renamePrefix, final DateConfiguration dateConfiguration) throws ApplicationException {
+  private void importKontoauszug(final File inFile, final Konto konto, FileInfo info, String renamePrefix, final DateConfiguration dateConfiguration) throws ApplicationException {
+    String year = info.mYear != null ? info.mYear : info.mNumberYear;
+    String month = info.mMonth;
+    String day = info.mDay;
+    String number = info.mNumber;
+    
     try {
       if(dateConfiguration.isEndType(Placeholder.TYPE_END_DAY_OF_MONTH)) {
         day = String.valueOf(dateConfiguration.getEndDayValue());
@@ -334,7 +340,7 @@ public class ContextMenuImportBankStatement implements Extension {
       }
       
       int num = Integer.parseInt(number);
-      int yearInt = Integer.parseInt(year);
+      int yearInt = Integer.parseInt(info.mNumberYear != null ? info.mNumberYear : year);
       
       boolean known = false;
       
@@ -348,6 +354,8 @@ public class ContextMenuImportBankStatement implements Extension {
           break;
         }
       }
+      
+      yearInt = Integer.parseInt(year);
       
       // only add unknown bank statements
       if(!known) {
@@ -430,8 +438,9 @@ public class ContextMenuImportBankStatement implements Extension {
         
         Kontoauszug auszug = Settings.getDBService().createObject(Kontoauszug.class,null);
         auszug.setKonto(konto);
-        auszug.setJahr(yearInt);
-        auszug.setNummer(num);
+        
+        auszug.setJahr(info.getNumberYear() != null ? info.getNumberYear() : yearInt);
+        auszug.setNummer(info.getNumber() != null ? info.getNumber() : num);
         
         if(endDate != null && dateConfiguration.isStartType(Placeholder.TYPE_START_DAY_OF_MONTH)) {
           cal.setTime(endDate);
@@ -587,6 +596,7 @@ public class ContextMenuImportBankStatement implements Extension {
     private String mMonth;
     private String mDay;
     private String mNumber;
+    private String mNumberYear;
     
     private int getYear() {
       return Integer.parseInt(mYear);
@@ -616,6 +626,14 @@ public class ContextMenuImportBankStatement implements Extension {
       return null;
     }
     
+    private Integer getNumberYear() {
+      if(mNumberYear != null) {
+        return Integer.parseInt(mNumberYear);
+      }
+      
+      return null;
+    }
+    
     @Override
     public int compareTo(FileInfo o) {
       Integer month = getMonth();
@@ -627,23 +645,22 @@ public class ContextMenuImportBankStatement implements Extension {
       Integer number = getNumber();
       Integer oNumber = o.getNumber();
 
+      Integer numberYear = getNumberYear();
+      Integer oNumberYear = o.getNumberYear();
+      
+      boolean next = false;
+      
       if(getYear() < o.getYear()) {
         return -1;
       }
       else if(getYear() > o.getYear()) {
         return 1;
       }
-      else if(month != null && oMonth != null && day != null && oDay != null && number != null && oNumber != null) {
-        if(month < oMonth) {
+      else if(numberYear != null && oNumberYear != null && number != null && oNumber != null) {
+        if(numberYear < oNumberYear) {
           return -1;
         }
-        else if(month > oMonth) {
-          return 1;
-        }
-        else if(day < oDay) {
-          return -1;
-        }
-        else if(day > oDay) {
+        else if(numberYear > oNumberYear) {
           return 1;
         }
         else if(number < oNumber) {
@@ -652,101 +669,127 @@ public class ContextMenuImportBankStatement implements Extension {
         else if(number > oNumber) {
           return 1;
         }
+        else {
+          next = true;
+        }
+      }
+      
+      if(next) {
+        if(month != null && oMonth != null && day != null && oDay != null && number != null && oNumber != null) {
+          if(month < oMonth) {
+            return -1;
+          }
+          else if(month > oMonth) {
+            return 1;
+          }
+          else if(day < oDay) {
+            return -1;
+          }
+          else if(day > oDay) {
+            return 1;
+          }
+          else if(number < oNumber) {
+            return -1;
+          }
+          else if(number > oNumber) {
+            return 1;
+          }
+          else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+            return -1;
+          }
+          else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+            return 1;
+          }
+          else {
+            return 0;
+          }
+        }
+        else if(month != null && oMonth != null && day != null && oDay != null) {
+          if(month < oMonth) {
+            return -1;
+          }
+          else if(month > oMonth) {
+            return 1;
+          }
+          else if(day < oDay) {
+            return -1;
+          }
+          else if(day > oDay) {
+            return 1;
+          }
+          else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+            return -1;
+          }
+          else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+            return 1;
+          }
+          else {
+            return 0;
+          }
+        }
+        else if(month != null && oMonth != null && number != null && oNumber != null) {
+          if(month < oMonth) {
+            return -1;
+          }
+          else if(month > oMonth) {
+            return 1;
+          }
+          else if(number < oNumber) {
+            return -1;
+          }
+          else if(number > oNumber) {
+            return 1;
+          }
+          else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+            return -1;
+          }
+          else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+            return 1;
+          }
+          else {
+            return 0;
+          }
+        }
+        else if(month != null && oMonth != null) {
+          if(month < oMonth) {
+            return -1;
+          }
+          else if(month > oMonth) {
+            return 1;
+          }
+          else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+            return -1;
+          }
+          else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+            return 1;
+          }
+          else {
+            return 0;
+          }
+        }
+        else if(number != null && oNumber != null) {
+          if(number < oNumber) {
+            return -1;
+          }
+          else if(number > oNumber) {
+            return 1;
+          }
+          else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
+            return -1;
+          }
+          else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
+            return 1;
+          }
+          else {
+            return 0;
+          }
+        }
         else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
           return -1;
         }
         else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
           return 1;
         }
-        else {
-          return 0;
-        }
-      }
-      else if(month != null && oMonth != null && day != null && oDay != null) {
-        if(month < oMonth) {
-          return -1;
-        }
-        else if(month > oMonth) {
-          return 1;
-        }
-        else if(day < oDay) {
-          return -1;
-        }
-        else if(day > oDay) {
-          return 1;
-        }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
-          return -1;
-        }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
-          return 1;
-        }
-        else {
-          return 0;
-        }
-      }
-      else if(month != null && oMonth != null && number != null && oNumber != null) {
-        if(month < oMonth) {
-          return -1;
-        }
-        else if(month > oMonth) {
-          return 1;
-        }
-        else if(number < oNumber) {
-          return -1;
-        }
-        else if(number > oNumber) {
-          return 1;
-        }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
-          return -1;
-        }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
-          return 1;
-        }
-        else {
-          return 0;
-        }
-      }
-      else if(month != null && oMonth != null) {
-        if(month < oMonth) {
-          return -1;
-        }
-        else if(month > oMonth) {
-          return 1;
-        }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
-          return -1;
-        }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
-          return 1;
-        }
-        else {
-          return 0;
-        }
-      }
-      else if(number != null && oNumber != null) {
-        if(number < oNumber) {
-          return -1;
-        }
-        else if(number > oNumber) {
-          return 1;
-        }
-        else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
-          return -1;
-        }
-        else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
-          return 1;
-        }
-        else {
-          return 0;
-        }
-      }
-      else if(mPdfFile.lastModified() < o.mPdfFile.lastModified()) {
-        return -1;
-      }
-      else if(mPdfFile.lastModified() > o.mPdfFile.lastModified()) {
-        return 1;
       }
       
       return 0;
