@@ -156,7 +156,7 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
     c1.addInput(getPredefinedInput());
     c1.addSeparator();
     
-    LabelInput help = new LabelInput("Rechenoperationen im Platzhalter:\n      Addition/Subtraktion z.B.: {monat_+1},{tag_-4}\n      ACHTUNG: Keine Plausibilitätsprüfung der berechneten Werte.\nSteuerbefehle im Platzhalter:\n      Auszug endet immer an einem Tag der Woche z.B.: {tag_edow7}=Sonntag, {tag_edow1}=Montag\n      Auszug endet am letzten Wochentag des Monats: {monat_eolwd}\n      Auszug beginnt am End-Datum des vorigen Auszugs: {monat_sold} oder {nummer_sold}\n      Auszug beginnt immer am selben Tag des Monats: z.B.: {monat_sdom13}=13. des Monats\n      Auszug endet immer am selbst Tag des Monats: z.B.: {monat_edom28}=28. des Monats\n      WICHTIG: Es kann nur ein Platzhalter Steuerbefehle enthalten, aber durchaus mehrere, z.B. {monat_sdom1;edom31}");
+    LabelInput help = new LabelInput("Rechenoperationen im Platzhalter:\n      Addition/Subtraktion z.B.: {monat_+1},{tag_-4}\n      ACHTUNG: Keine Plausibilitätsprüfung der berechneten Werte.\nSteuerbefehle im Platzhalter:\n      Auszug endet immer an einem Tag der Woche z.B.: {tag_edow7}=Sonntag, {tag_edow1}=Montag\n      Auszug endet am letzten Wochentag des Monats: {monat_eolwd}\n      Auszug endet immer am gleichen Tag des Monats: z.B.: {monat_edom28}=28. des Monats\n      Auszug beginnt am End-Datum des vorigen Auszugs: {monat_sold} oder {nummer_sold}\n      Auszug beginnt immer am gleichen Tag des Monats: z.B.: {monat_sdom13}=13. des Monats\n      WICHTIG: Es kann nur ein Platzhalter Steuerbefehle enthalten, aber durchaus mehrere, z.B. {monat_sdom1;edom31}");
     help.setName(" ");
     
     Container c = new SimpleContainer(parent);
