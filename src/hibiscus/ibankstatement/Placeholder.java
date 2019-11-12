@@ -32,16 +32,25 @@ public class Placeholder {
   static final int TYPE_MONTH = 2;
   static final int TYPE_DAY = 3;
   static final int TYPE_NUMBER = 4;
+  
+  static final int TYPE_ACCOUNT = 10;
+  static final int TYPE_ID_USER = 11;
 
   static final int TYPE_END_DEFAULT = 0;
   static final int TYPE_END_LAST_WEEKDAY_OF_MONTH = 1;
   static final int TYPE_END_DAY_OF_WEEK = 2;
+  static final int TYPE_END_DAY_OF_MONTH = 3;
+  
+  static final int TYPE_START_ON_LAST_DATE = 1;
+  static final int TYPE_START_DAY_OF_MONTH = 2;
   
   static final Placeholder[] PLACEHOLDER= {
       new Placeholder(Placeholder.TYPE_YEAR, "{year}", "{jahr}"),
       new Placeholder(Placeholder.TYPE_MONTH, "{month}", "{monat}"),
       new Placeholder(Placeholder.TYPE_DAY, "{day}", "{tag}"),
-      new Placeholder(Placeholder.TYPE_NUMBER, "{number}", "{nummer}")
+      new Placeholder(Placeholder.TYPE_NUMBER, "{number}", "{nummer}"),
+      new Placeholder(Placeholder.TYPE_ACCOUNT, "{account}", "{konto}"),
+      new Placeholder(Placeholder.TYPE_ID_USER, "{userid}", "{kennung}"),
   };
   
   private int mType;
@@ -78,8 +87,8 @@ public class Placeholder {
     return mType;
   }
   
-  public int[] getEndType(String value) {
-    int result[] = null;
+  public DateConfiguration getDateConfiguration(String value) {
+    DateConfiguration result = new DateConfiguration();
     
     try {
       final Matcher m = Pattern.compile(getPattern()).matcher(value);
@@ -87,28 +96,46 @@ public class Placeholder {
       if(m.find()) {
         String group2 = m.group(2).trim();
         
-        if(!group2.trim().isEmpty()) {
-          if(mType == TYPE_MONTH && group2.equals("_eolwd")) {
-            result = new int[2];
-            result[0] = TYPE_END_LAST_WEEKDAY_OF_MONTH;
-            result[1] = -1;
-            
-          }
-          else if(mType == TYPE_DAY && group2.startsWith("_edow")) {
-            try {
-              int day = Integer.parseInt(group2.substring(5))+1;
-              
-              if(day == 8) {
-                day = Calendar.SUNDAY;
+        if(!group2.trim().isEmpty() && group2.startsWith("_")) {
+          final String[] parts = group2.substring(1).split(";");
+          
+          for(String part : parts) {
+            if(mType == TYPE_MONTH && part.equals("eolwd")) {
+              result.mEndType = TYPE_END_LAST_WEEKDAY_OF_MONTH;
+            }
+            else if((mType == TYPE_MONTH || mType == TYPE_NUMBER) && part.equals("sold")) {
+              result.mStartType = TYPE_START_ON_LAST_DATE;
+            }
+            else if(mType == TYPE_MONTH && part.startsWith("sdom")) {
+              try {
+                int day = Integer.parseInt(part.substring(4));
+                result.mStartType = TYPE_START_DAY_OF_MONTH;
+                result.mStartDayValue = day;
+              }catch(NumberFormatException nfe) {}
+            }
+            else if(mType == TYPE_MONTH && part.startsWith("edom")) {
+              try {
+                int day = Integer.parseInt(part.substring(4));
+                
+                result.mEndType = TYPE_END_DAY_OF_MONTH;
+                result.mEndDayValue = day;
+              }catch(NumberFormatException nfe) {}
+            }
+            else if(mType == TYPE_DAY && part.startsWith("edow")) {
+              try {
+                int day = Integer.parseInt(part.substring(4))+1;
+                
+                if(day == 8) {
+                  day = Calendar.SUNDAY;
+                }
+                
+                if(day >= Calendar.SUNDAY && day <= Calendar.SATURDAY) {
+                  result.mEndType = TYPE_END_DAY_OF_WEEK;
+                  result.mEndDayValue = day;
+                }
+              }catch(NumberFormatException nfe) {
+                //ignore
               }
-              
-              if(day >= Calendar.SUNDAY && day <= Calendar.SATURDAY) {
-                result = new int[2];
-                result[0] = TYPE_END_DAY_OF_WEEK;
-                result[1] = day;
-              }
-            }catch(NumberFormatException nfe) {
-              //ignore
             }
           }
         }
@@ -116,6 +143,47 @@ public class Placeholder {
       
     }catch(NumberFormatException nfe) {
       nfe.printStackTrace();
+    }
+    
+    return result;
+  }
+  
+  public String replaceKontoDaten(String replace, String subject) {
+    String result = subject;
+    
+    if(replace != null && (getType() == TYPE_ACCOUNT || getType() == TYPE_ID_USER)) {
+      final Matcher m = Pattern.compile(getPattern()).matcher(subject);
+      
+      int pos = 0;
+      
+      while(m.find(pos)) {
+        String group1 = m.group(1);
+        String group2 = m.group(2);
+        String replaceValue = replace;
+        
+        if(!group2.trim().isEmpty()) {
+          try {
+            if(group2.startsWith("_l")) {
+              int value = Integer.parseInt(group2.substring(2).trim());
+              
+              if(value < replace.length()) {
+                replaceValue = replace.substring(0, value);
+              }
+            }
+            else if(group2.startsWith("_r")) {
+              int value = Integer.parseInt(group2.substring(2).trim());
+              
+              if(value < replace.length()) {
+                replaceValue = replace.substring(replace.length()-value);
+              }
+            }
+          }catch(NumberFormatException e) {}
+        }
+        
+        result = result.replace(group1, replaceValue); 
+        
+        pos = m.end();
+      }
     }
     
     return result;
@@ -259,5 +327,34 @@ public class Placeholder {
     }
     
     return result;
+  }
+  
+  static final class DateConfiguration {
+    private int mStartType = -1;
+    private int mEndType = -1;
+    private int mStartDayValue = -1;
+    private int mEndDayValue = -1;
+    
+    private DateConfiguration() {}
+    
+    boolean isStartType(int type) {
+      return mStartType == type;
+    }
+    
+    int getStartDayValue() {
+      return mStartDayValue;
+    }
+    
+    boolean isEndType(int type) {
+      return mEndType == type;
+    }
+    
+    int getEndDayValue() {
+      return mEndDayValue;
+    }
+    
+    boolean isDefaultType() {
+      return mStartType == -1 && mEndType == -1;
+    }
   }
 }

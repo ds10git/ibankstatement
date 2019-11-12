@@ -72,8 +72,8 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   
   private static final String VALUE_DEFAULT_PATTERN_NAME = "({\\d{4})-({\\d{2})-({\\d{2})_{konto}_({\\d{2}})\\.pdf";
   
-  private final static int WIDTH = 870;
-  private final static int HEIGHT = 590;
+  private final static int WIDTH = 1000;
+  private final static int HEIGHT = 640;
   
   private HashMap<Input, InputValidator> mValidationMap;
   
@@ -152,11 +152,11 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   protected void paint(Composite parent) throws Exception {
     Container c1 = new SimpleContainer(parent);
     
-    c1.addText("Der Datei-Pattern-Eintrag erlaubt den Platzhalter {konto}, unter Matching-Groups ist die Reihenfolge der Matching-Groups im Datei-Pattern einzutragen z.B.: {jahr},{monat},{tag},{nummer}, nicht vorkommende Werte werden weggelassen. Mit dem Umbenennen-Prefix lässt sich ein Prefix festlegen, der dem Dateiname des Kontoauszugs voran gestellt wird. Mögliche Platzhalter: {jahr}, {monat}, {tag} und {nummer}\n", true);
+    c1.addText("Der Datei-Pattern-Eintrag erlaubt die Platzhalter {konto} und {kennung}, unter Matching-Groups ist die Reihenfolge der Matching-Groups im Datei-Pattern einzutragen z.B.: {jahr},{monat},{tag},{nummer}, nicht vorkommende Werte werden weggelassen. Mit dem Umbenennen-Prefix lässt sich ein Prefix festlegen, der dem Dateiname des Kontoauszugs voran gestellt wird. Mögliche Platzhalter: {jahr}, {monat}, {tag} und {nummer}\n", true);
     c1.addInput(getPredefinedInput());
     c1.addSeparator();
     
-    LabelInput help = new LabelInput("Rechenoperationen im Platzhalter:\n      Addition/Subtraktion z.B.: {monat_+1},{tag_-4}\n      ACHTUNG: Keine Plausibilitätsprüfung der berechneten Werte.\nSteuerbefehle im Platzhalter:\n      Auszug endet immer an einem Tag der Woche z.B.: {tag_edow7}=Sonntag, {tag_edow1}=Montag\n      Auszug endet am letzten Wochentag des Monats: {monat_eolwd}");
+    LabelInput help = new LabelInput("Rechenoperationen im Platzhalter:\n      Addition/Subtraktion z.B.: {monat_+1},{tag_-4}\n      ACHTUNG: Keine Plausibilitätsprüfung der berechneten Werte.\nSteuerbefehle im Platzhalter:\n      Auszug endet immer an einem Tag der Woche z.B.: {tag_edow7}=Sonntag, {tag_edow1}=Montag\n      Auszug endet am letzten Wochentag des Monats: {monat_eolwd}\n      Auszug beginnt am End-Datum des vorigen Auszugs: {monat_sold} oder {nummer_sold}\n      Auszug beginnt immer am selben Tag des Monats: z.B.: {monat_sdom13}=13. des Monats\n      Auszug endet immer am selbst Tag des Monats: z.B.: {monat_edom28}=28. des Monats\n      WICHTIG: Es kann nur ein Platzhalter Steuerbefehle enthalten, aber durchaus mehrere, z.B. {monat_sdom1;edom31}");
     help.setName(" ");
     
     Container c = new SimpleContainer(parent);

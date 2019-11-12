@@ -24,5 +24,7 @@ import de.willuhn.jameica.plugin.AbstractPlugin;
  * Basis-Klasse des Plugins.
  */
 public class Plugin extends AbstractPlugin {
-
+  public Plugin() {
+    System.out.println(Placeholder.get(Placeholder.TYPE_ACCOUNT).replaceKontoDaten("123456789", "{konto_l2}xxxxxx{konto_r3}"));
+  }
 }
