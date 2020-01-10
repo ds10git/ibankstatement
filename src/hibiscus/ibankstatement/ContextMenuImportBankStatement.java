@@ -342,8 +342,6 @@ public class ContextMenuImportBankStatement implements Extension {
       int num = Integer.parseInt(number);
       int yearInt = Integer.parseInt(info.mNumberYear != null ? info.mNumberYear : year);
       
-      boolean known = false;
-      
       items.begin();
       
       while(items.hasNext()) {
@@ -357,187 +355,199 @@ public class ContextMenuImportBankStatement implements Extension {
       
       yearInt = Integer.parseInt(year);
       
-      // only add unknown bank statements
-      if(!known) {
-        if(month != null) {
-          try {
-            int monthVal = Integer.parseInt(month);
+      if(month != null) {
+        try {
+          int monthVal = Integer.parseInt(month);
+          
+          if(monthVal < 1) {
+            month = "12";
+            yearInt = Integer.parseInt(year)-1;
+            year = String.valueOf(yearInt);
             
-            if(monthVal < 1) {
-              month = "12";
-              yearInt = Integer.parseInt(year)-1;
-              year = String.valueOf(yearInt);
-              
-              if(last != null) {
-                num = last.getNummer()+1;
-              }
-            }else if(monthVal > 12) {
-              month = "1";
-              yearInt = Integer.parseInt(year)+1;
-              year = String.valueOf(yearInt);
-              num = 1;
+            if(last != null) {
+              num = last.getNummer()+1;
             }
-          }catch(NumberFormatException nfe) {}
+          }else if(monthVal > 12) {
+            month = "1";
+            yearInt = Integer.parseInt(year)+1;
+            year = String.valueOf(yearInt);
+            num = 1;
+          }
+        }catch(NumberFormatException nfe) {}
+      }
+      
+      renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_YEAR), yearInt, renamePrefix);
+      renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_NUMBER), num, renamePrefix);
+      
+      Date endDate = null;
+      Date startDate = null;
+      
+      if(bisLast != null) {
+        cal.setTime(bisLast);
+        
+        if(!dateConfiguration.isStartType(Placeholder.TYPE_START_ON_LAST_DATE)) {
+          cal.add(Calendar.DAY_OF_YEAR, 1);
         }
         
-        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_YEAR), yearInt, renamePrefix);
-        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_NUMBER), num, renamePrefix);
+        startDate = cal.getTime();
+      }
+      
+      if(day != null && month != null) {
+        int dayVal = Integer.parseInt(day);
+        setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
         
-        Date endDate = null;
-        Date startDate = null;
-        
-        if(bisLast != null) {
-          cal.setTime(bisLast);
+        if(dayVal < 1) {
+          cal.add(Calendar.DAY_OF_YEAR, -1);
+        }
+        else if(dayVal > cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
+          cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
           
-          if(!dateConfiguration.isStartType(Placeholder.TYPE_START_ON_LAST_DATE)) {
+          if(!dateConfiguration.isEndType(Placeholder.TYPE_END_DAY_OF_MONTH)) {
             cal.add(Calendar.DAY_OF_YEAR, 1);
           }
-          
-          startDate = cal.getTime();
+        }
+        else {
+          cal.set(Calendar.DAY_OF_MONTH, dayVal);
         }
         
-        if(day != null && month != null) {
-          int dayVal = Integer.parseInt(day);
-          setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
+        endDate = cal.getTime();
+        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), cal.get(Calendar.MONTH)+1, renamePrefix);
+        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_DAY), cal.get(Calendar.DAY_OF_MONTH), renamePrefix);
+      }
+      else if(month != null) {
+        setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+        endDate = cal.getTime();
+        renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), cal.get(Calendar.MONTH)+1, renamePrefix);
+      }
+      
+      if((startDate == null || (startDate != null && endDate != null && startDate.equals(endDate))) && !dateConfiguration.isStartType(Placeholder.TYPE_START_DAY_OF_MONTH)) {
+         DialogDateSelection config = new DialogDateSelection(DialogDateSelection.TYPE_DATE_START,inFile,endDate,konto);
+         
+         try {  
+          config.open();
+          startDate = config.getData();
+        }catch(Exception e) {
+          e.printStackTrace();
+        }
+      }
+      
+      Kontoauszug auszug = Settings.getDBService().createObject(Kontoauszug.class,null);
+      auszug.setKonto(konto);
+      
+      auszug.setJahr(info.getNumberYear() != null ? info.getNumberYear() : yearInt);
+      auszug.setNummer(info.getNumber() != null ? info.getNumber() : num);
+      
+      if(endDate != null && dateConfiguration.isStartType(Placeholder.TYPE_START_DAY_OF_MONTH)) {
+        cal.setTime(endDate);
+        cal.add(Calendar.DAY_OF_YEAR, -cal.get(Calendar.DAY_OF_MONTH)-1);
+        
+        if(dateConfiguration.getStartDayValue() <= cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
+          cal.set(Calendar.DAY_OF_MONTH, dateConfiguration.getStartDayValue());
           
-          if(dayVal < 1) {
-            cal.add(Calendar.DAY_OF_YEAR, -1);
-          }
-          else if(dayVal > cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
-            cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+          if((endDate.getTime()-cal.getTimeInMillis()) > 31 * 24 * 60 * 60000l+1) {
+            cal.setTime(endDate);
             
-            if(!dateConfiguration.isEndType(Placeholder.TYPE_END_DAY_OF_MONTH)) {
-              cal.add(Calendar.DAY_OF_YEAR, 1);
-            }
-          }
-          else {
-            cal.set(Calendar.DAY_OF_MONTH, dayVal);
-          }
-          
-          endDate = cal.getTime();
-          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), cal.get(Calendar.MONTH)+1, renamePrefix);
-          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_DAY), cal.get(Calendar.DAY_OF_MONTH), renamePrefix);
-        }
-        else if(month != null) {
-          setCalendarDate(cal, yearInt, Integer.parseInt(month)-1, 1);
-          cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
-          endDate = cal.getTime();
-          renamePrefix = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), cal.get(Calendar.MONTH)+1, renamePrefix);
-        }
-        
-        if((startDate == null || (startDate != null && endDate != null && startDate.equals(endDate))) && !dateConfiguration.isStartType(Placeholder.TYPE_START_DAY_OF_MONTH)) {
-           DialogDateSelection config = new DialogDateSelection(DialogDateSelection.TYPE_DATE_START,inFile,endDate,konto);
-           
-           try {  
-            config.open();
-            startDate = config.getData();
-          }catch(Exception e) {
-            e.printStackTrace();
-          }
-        }
-        
-        Kontoauszug auszug = Settings.getDBService().createObject(Kontoauszug.class,null);
-        auszug.setKonto(konto);
-        
-        auszug.setJahr(info.getNumberYear() != null ? info.getNumberYear() : yearInt);
-        auszug.setNummer(info.getNumber() != null ? info.getNumber() : num);
-        
-        if(endDate != null && dateConfiguration.isStartType(Placeholder.TYPE_START_DAY_OF_MONTH)) {
-          cal.setTime(endDate);
-          cal.add(Calendar.DAY_OF_YEAR, -cal.get(Calendar.DAY_OF_MONTH)-1);
-          
-          if(dateConfiguration.getStartDayValue() <= cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
-            cal.set(Calendar.DAY_OF_MONTH, dateConfiguration.getStartDayValue());
-            
-            if((endDate.getTime()-cal.getTimeInMillis()) > 31 * 24 * 60 * 60000l+1) {
-              cal.setTime(endDate);
+            if(dateConfiguration.getStartDayValue() <= cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
+              cal.set(Calendar.DAY_OF_MONTH, dateConfiguration.getStartDayValue());
               
-              if(dateConfiguration.getStartDayValue() <= cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
-                cal.set(Calendar.DAY_OF_MONTH, dateConfiguration.getStartDayValue());
-                
-                startDate = cal.getTime();
-              }
-            }
-            else {
               startDate = cal.getTime();
             }
           }
-        }
-        
-        if(startDate != null) {
-          if(endDate != null && startDate.after(endDate)) {
-            auszug.setVon(endDate);
-          }
           else {
-            auszug.setVon(startDate);
+            startDate = cal.getTime();
           }
         }
-        if(endDate != null) {
-          if(dateConfiguration.isEndType(Placeholder.TYPE_END_LAST_WEEKDAY_OF_MONTH) || konto.getMeta(DialogConfigBankStatement.LEGACY_KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
-            cal.setTime(endDate);
-            
-            if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
-              cal.add(Calendar.DAY_OF_MONTH, -1);
-            }
-            else if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-              cal.add(Calendar.DAY_OF_MONTH, -2);
-            }
-            
-            HolidayManager m = HolidayManager.getInstance(ManagerParameters.create(HolidayCalendar.GERMANY));
-            
-            while(m.isHoliday(cal) || (cal.get(Calendar.MONTH) == Calendar.DECEMBER) && (cal.get(Calendar.DAY_OF_MONTH) == 24 || cal.get(Calendar.DAY_OF_MONTH) == 31)) {
-              cal.add(Calendar.DAY_OF_MONTH, -1);
-            }
-            
-            endDate = cal.getTime();
+      }
+      
+      if(startDate != null) {
+        if(endDate != null && startDate.after(endDate)) {
+          auszug.setVon(endDate);
+        }
+        else {
+          auszug.setVon(startDate);
+        }
+      }
+      if(endDate != null) {
+        if(dateConfiguration.isEndType(Placeholder.TYPE_END_LAST_WEEKDAY_OF_MONTH) || konto.getMeta(DialogConfigBankStatement.LEGACY_KEY_ALWAYS_ON_WEEKDAY_END, "false").equals("true")) {
+          cal.setTime(endDate);
+          
+          if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
+            cal.add(Calendar.DAY_OF_MONTH, -1);
           }
-          else if(dateConfiguration.isEndType(Placeholder.TYPE_END_DAY_OF_WEEK)) {
-            cal.setTime(endDate);
-            
-            int diff = 0;
-            
-            diff = dateConfiguration.getEndDayValue() - cal.get(Calendar.DAY_OF_WEEK);
-            
-            if(dateConfiguration.getEndDayValue() == Calendar.SUNDAY && diff != 0) {
-              diff = 8 - cal.get(Calendar.DAY_OF_WEEK);
-            }
-            
-            cal.add(Calendar.DAY_OF_YEAR, diff);
-            
-            endDate = cal.getTime();
+          else if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+            cal.add(Calendar.DAY_OF_MONTH, -2);
           }
+          
+          HolidayManager m = HolidayManager.getInstance(ManagerParameters.create(HolidayCalendar.GERMANY));
+          
+          while(m.isHoliday(cal) || (cal.get(Calendar.MONTH) == Calendar.DECEMBER) && (cal.get(Calendar.DAY_OF_MONTH) == 24 || cal.get(Calendar.DAY_OF_MONTH) == 31)) {
+            cal.add(Calendar.DAY_OF_MONTH, -1);
+          }
+          
+          endDate = cal.getTime();
+        }
+        else if(dateConfiguration.isEndType(Placeholder.TYPE_END_DAY_OF_WEEK)) {
+          cal.setTime(endDate);
+          
+          int diff = 0;
+          
+          diff = dateConfiguration.getEndDayValue() - cal.get(Calendar.DAY_OF_WEEK);
+          
+          if(dateConfiguration.getEndDayValue() == Calendar.SUNDAY && diff != 0) {
+            diff = 8 - cal.get(Calendar.DAY_OF_WEEK);
+          }
+          
+          cal.add(Calendar.DAY_OF_YEAR, diff);
+          
+          endDate = cal.getTime();
+        }
 
-          auszug.setBis(endDate);
+        auszug.setBis(endDate);
+      }
+      
+      String source = konto.getMeta(DialogConfigBankStatement.KEY_DOWNLOAD_PATH, "");
+      String path = konto.getMeta(DialogConfigBankStatement.KEY_TARGET_PATH, "");
+      
+      // move file only if the target path is available and doesn't equals the source path
+      if(!path.trim().isEmpty() && !source.equals(path)) {
+        File target = new File(path,renamePrefix+inFile.getName());
+        
+        items.begin();
+        
+        // again check if Kontoauszug is known
+        while(items.hasNext()) {
+          Kontoauszug test = (Kontoauszug)items.next();
+          
+          // known Kontoauszug, no need to add
+          if(test.getDateiname().endsWith(target.getName())) {
+            return;
+          }
         }
         
-        String source = konto.getMeta(DialogConfigBankStatement.KEY_DOWNLOAD_PATH, "");
-        String path = konto.getMeta(DialogConfigBankStatement.KEY_TARGET_PATH, "");
+        if(!target.getParentFile().exists()) {
+          target.getParentFile().mkdirs();
+        }
         
-        // move file only if the target path is available and doesn't equals the source path
-        if(!path.trim().isEmpty() && !source.equals(path)) {
-          File target = new File(path,renamePrefix+inFile.getName());
-          
-          Files.move(inFile.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-          
-          if(target.isFile()) {
-            auszug.setDateiname(target.getName());
-            auszug.setPfad(target.getParent());
-          }
-          else {
-            auszug.setDateiname(inFile.getName());
-            auszug.setPfad(inFile.getParent());
-          }
+        Files.move(inFile.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        
+        if(target.isFile()) {
+          auszug.setDateiname(target.getName());
+          auszug.setPfad(target.getParent());
         }
         else {
           auszug.setDateiname(inFile.getName());
           auszug.setPfad(inFile.getParent());
         }
-        
-        auszug.store();
-        Application.getMessagingFactory().sendMessage(new StatusBarMessage("Kontoauszug angelegt",StatusBarMessage.TYPE_SUCCESS));
-        Application.getMessagingFactory().sendMessage(new ImportMessage(auszug));
+      }
+      else {
+        auszug.setDateiname(inFile.getName());
+        auszug.setPfad(inFile.getParent());
       }
       
+      auszug.store();
+      Application.getMessagingFactory().sendMessage(new StatusBarMessage("Kontoauszug angelegt",StatusBarMessage.TYPE_SUCCESS));
+      Application.getMessagingFactory().sendMessage(new ImportMessage(auszug));
     }catch(Exception e) {e.printStackTrace();}
   }
   

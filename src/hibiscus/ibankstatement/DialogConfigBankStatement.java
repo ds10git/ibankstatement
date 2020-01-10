@@ -120,7 +120,7 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   /**
   * Checks if the input has not an empty value and for DirectoryInput if the entered path is a directory.
   * @param input The input to check.
-  * @param checkEmpty If <code>true</code> the emptiness of the value of the input is not checked.
+  * @param checkEmpty If <code>false</code> the emptiness of the value of the input is not checked.
   * So an Input with an empty value is still valid. 
   * @return <code>true</code> if the Input is valid.
   */
