@@ -1,6 +1,6 @@
 name;pattern;order;BLZ;BIC
 comdirect bank;.*?Finanzreport_Nr\._(\d{2})_per_(\d{2})\.(\d{2})\.(\d{4}).*?\.pdf;{nummer},{tag},{monat},{jahr};;COBADEHD
-Consorsbank;.*?KONTOAUSZUG_.*?KONTO_{konto}_dat(\d{4})(\d{2})(\d{2})_id.*?\.pdf";{jahr},{monat},{tag};76030080,70120400;
+Consorsbank;.*?KONTOAUSZUG_.*?KONTO_{konto}_dat(\d{4})(\d{2})(\d{2})_id.*?\.pdf;{jahr},{monat},{tag};76030080,70120400;
 DKB;Kontoauszug_{konto}_Nr_(\d{4})_(\d{3})_per_(\d{4})_(\d{2})_(\d{2})\.pdf;{nummerJahr},{nummer},{jahr},{monat_sold},{tag};12030000;BYLADEM1001
 DKB - Kreditkarten;Kreditkartenabrechnung_{kennung_l4}x{8}{kennung_r4}_per_(\d{4})_(\d{2})_(\d{2})\.pdf;{jahr},{monat_sdom22},{tag};12030000;BYLADEM1001
 Fidorbank;.*?Kontoauszug_(\d{2})_(\d{4})\.pdf;{monat_eolwd},{jahr};70022200;
