@@ -58,7 +58,7 @@ public class DirectoryInputExt extends DirectoryInput {
       mInput.addListener(SWT.Modify, new Listener() {
         @Override
         public void handleEvent(Event event) {
-          
+          checkValidity();
         }
       });
       checkValidity();
