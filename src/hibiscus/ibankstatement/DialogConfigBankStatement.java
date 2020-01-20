@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.DisposeEvent;
@@ -75,15 +74,13 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   private final static int WIDTH = 1000;
   private final static int HEIGHT = 640;
   
-  private HashMap<Input, InputValidator> mValidationMap;
-  
   private Konto mKonto;
   private Settings mSettings;
   
   private SelectInput mPredefined;
   
-  private TextInput mPatternFileName;
-  private TextInput mMatchOrder;
+  private TextInputExt mPatternFileName;
+  private TextInputExt mMatchOrder;
   private TextInput mRenamePrefix;
   
   private DirectoryInput mDirectorySource;
@@ -95,7 +92,6 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   public DialogConfigBankStatement(final Settings settings, final Konto konto) {
     super(POSITION_CENTER);
     
-    mValidationMap = new HashMap<>(0);
     mKonto = konto;
     mSettings = settings;
     
@@ -125,13 +121,14 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   * @return <code>true</code> if the Input is valid.
   */
   private boolean isValid(Input input, boolean checkEmpty) {
-    final InputValidator test = mValidationMap.get(input);
+    boolean result = false;
     
-    if(test != null) {
-      return test.isValid(input, checkEmpty);
+    if(input instanceof TextInputExt) {
+      result = ((TextInputExt) input).isValid(checkEmpty);
     }
-    
-    boolean result = !String.valueOf(input.getValue()).trim().isEmpty();
+    else {
+      result = !String.valueOf(input.getValue()).trim().isEmpty();
+    }
     
     if(input instanceof DirectoryInput) {
       if(!result) {
@@ -418,7 +415,7 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   
   private synchronized DirectoryInput getDirectorySource() throws RemoteException {
     if(mDirectorySource == null) {
-      mDirectorySource = new DirectoryInput(mKonto.getMeta(KEY_DOWNLOAD_PATH, System.getProperty("user.home")+File.separator+"Downloads"));
+      mDirectorySource = new DirectoryInputExt(mKonto.getMeta(KEY_DOWNLOAD_PATH, System.getProperty("user.home")+File.separator+"Downloads"));
       mDirectorySource.setName("Download-Ordner:");
       mDirectorySource.setMandatory(true);
     }
@@ -428,7 +425,7 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   
   private synchronized DirectoryInput getDirectoryTarget() throws RemoteException {
     if(mDirectoryTarget == null) {
-      mDirectoryTarget = new DirectoryInput(mKonto.getMeta(KEY_TARGET_PATH, ""));
+      mDirectoryTarget = new DirectoryInputExt(mKonto.getMeta(KEY_TARGET_PATH, ""));
       mDirectoryTarget.setName("Ziel-Ordner:");
     }
     
@@ -437,11 +434,10 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   
   private synchronized TextInput getPatternFileName() throws RemoteException {
     if(mPatternFileName == null) {
-      mPatternFileName = new TextInput(mKonto.getMeta(KEY_PATTERN_NAME, VALUE_DEFAULT_PATTERN_NAME));
+      mPatternFileName = new TextInputExt(mKonto.getMeta(KEY_PATTERN_NAME, VALUE_DEFAULT_PATTERN_NAME));
       mPatternFileName.setName("Datei-Pattern:");
       mPatternFileName.setMandatory(true);
-      
-      mValidationMap.put(mPatternFileName, new InputValidator() {
+      mPatternFileName.setValidator(new InputValidator() {
         @Override
         public boolean isValid(Input input, boolean checkEmpty) {
           String text = (String)input.getValue();
@@ -486,12 +482,11 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
         value = Placeholder.replace(Placeholder.get(Placeholder.TYPE_MONTH), "{monat_"+Placeholder.KEY_END_LAST_WEEKDAY_OF_MONTH+"}", value);
       }
       
-      mMatchOrder = new TextInput(value);
+      mMatchOrder = new TextInputExt(value);
       mMatchOrder.setName("Match-Reihenfolge:");
       mMatchOrder.setHint("Reihenfolge der Matching-Groups für {jahr},{monat},{tag},{nummer},{nummerJahr}, z.B.: {jahr},{monat},{nummer}");
       mMatchOrder.setMandatory(true);
-      
-      mValidationMap.put(mMatchOrder, new InputValidator() {
+      mMatchOrder.setValidator(new InputValidator() {
         @Override
         public boolean isValid(final Input input, final boolean checkEmpty) {
           String text = (String) input.getValue();
@@ -623,7 +618,7 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
     }
   }
   
-  private static interface InputValidator {
+  public static interface InputValidator {
     public boolean isValid(final Input input, boolean checkEmpty);
   }
 }
