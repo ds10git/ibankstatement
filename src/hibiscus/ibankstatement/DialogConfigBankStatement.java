@@ -69,7 +69,7 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
   
   static final String KEY_PROPERTY_KONTEN = ContextMenuImportBankStatement.class.getCanonicalName()+":Konten";
   
-  private static final String VALUE_DEFAULT_PATTERN_NAME = "({\\d{4})-({\\d{2})-({\\d{2})_{konto}_({\\d{2}})\\.pdf";
+  private static final String VALUE_DEFAULT_PATTERN_NAME = "(\\d{4})-(\\d{2})-(\\d{2})_{konto}_(\\d{2})\\.pdf";
   
   private final static int WIDTH = 1000;
   private final static int HEIGHT = 640;
