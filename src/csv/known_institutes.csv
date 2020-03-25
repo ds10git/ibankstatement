@@ -6,6 +6,7 @@ DKB - Kreditkarten;Kreditkartenabrechnung_{kennung_l4}x{8}{kennung_r4}_per_(\d{4
 Fidorbank;.*?Kontoauszug_(\d{2})_(\d{4})\.pdf;{monat_eolwd},{jahr};70022200;
 Genossenschaftsbanken/Volksbanken/Raiffeisenbanken;{konto}_(\d{4})_Nr\.(\d{3})_Kontoauszug_vom_\d{2}\.(\d{2})\.(\d{4}).*?\.pdf;{nummerJahr},{nummer},{monat},{jahr};;GENODE,VO,VB,ULMVDE66,BEVODEBB,FFVBDEFF,WIBADE5W,DGPBDE3M,MVBMDE55,SABADE5S,ERFBDE8E
 Genossenschaftsbanken/Volksbanken/Raiffeisenbanken - Kreditkarten;x.*?HIER-LETZTE-3-ZIFFERN-DER-KREDITKARTENNUMMER-EINTRAGEN_ *?(\d{4})_Kreditkarten-Umsatzaufstellung_vom_(\d{2})\.(\d{2})\.(\d{4})_.*?\.pdf;{nummerJahr},{tag},{monat},{jahr};;
+ING;.*?_{konto}_Kontoauszug_(\d{4})(\d{2})\d{2}\.pdf;{jahr},{monat_-1|eolwd};;INGDDEFF
 MoneYou;.*?DE\d{2}50324040{konto}_\d{6}_(\d{4})(\d{2})(\d{2})\.pdf;{jahr},{monat},{tag};50324040;
 norisbank;Kontoauszug_\d{3}{konto}_(\d{4})-(\d{2})-(\d{2}).*?\.pdf;{jahr},{monat},{tag};76026000,10077777;
 Paypal;MSR-(\d{4})(\d{2})\.PDF;{jahr},{monat};50110800;CHASDEF

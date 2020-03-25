@@ -366,7 +366,7 @@ public class DialogConfigBankStatement extends AbstractDialog<Object> {
         while((line = read.readLine()) != null) {
           parts = line.split(";",-1);
           
-          list.add(new KontoData(parts[indexName], parts[indexPattern], parts[indexOrder], parts[indexBLZ].split(","), parts[indexBIC].split(",")));
+          list.add(new KontoData(parts[indexName], parts[indexPattern], parts[indexOrder].replace("|",";"), parts[indexBLZ].split(","), parts[indexBIC].split(",")));
         }
         
       }catch(IOException ioe) {
