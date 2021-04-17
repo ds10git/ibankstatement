@@ -3,7 +3,7 @@
 <plugin xmlns="http://www.willuhn.de/schema/jameica-plugin"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.willuhn.de/schema/jameica-plugin http://www.willuhn.de/schema/jameica-plugin-1.2.xsd"
-        name="hibiscus.ibankstatement" version="0.8.6" class="hibiscus.ibankstatement.Plugin">
+        name="hibiscus.ibankstatement" version="0.9" class="hibiscus.ibankstatement.Plugin">
 
   <description>Hibiscus - Profil-basierter Import von Kontoauszügen</description>
   <url>https://hibiscus.tvbrowser.org/download/hibiscus.ibankstatement.zip</url>
@@ -23,4 +23,8 @@
     <!-- Hibiscus-Extensions -->
     <extension class="hibiscus.ibankstatement.ContextMenuImportBankStatement" extends="de.willuhn.jameica.hbci.gui.menus.KontoList" requires="hibiscus"/>
   </extensions>
+  
+  <messaging>
+    <consumer queue="hibiscus.ibankstatement"              class="hibiscus.ibankstatement.BankStatementMessageConsumer" />
+  </messaging>
 </plugin>
