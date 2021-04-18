@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -64,25 +65,23 @@ public class BankStatementImporter {
   
   public void handleMessage(TextMessage message) {
     final String[] parts = message.getText().split("\n");
-    final ArrayList<File> files = new ArrayList<>();
+    final ArrayList<Import> imports = new ArrayList<>();
     
     for(String part : parts) {
-      if(part.toLowerCase().endsWith(".pdf") && mSettings.getString(part, null) == null) {
-        final File test = new File(part);
-        
-        if(test.isFile()) {
-          files.add(test);
-          mSettings.setAttribute(part, "1");
-        }
+      Import i = Import.getImport(part);
+      
+      if(i != null && mSettings.getString(i.mFile.getAbsolutePath(), null) == null) {
+        imports.add(i);
+        mSettings.setAttribute(i.mFile.getAbsolutePath(), "1");
       }
     }
     
-    if(!files.isEmpty()) {
-      handleAction(files);
+    if(!imports.isEmpty()) {
+      handleAction(imports);
     }
   }
   
-  public void handleAction(ArrayList<File> inFiles) {
+  public void handleAction(ArrayList<Import> imports) {
     final String[] ids = mSettings.getList(DialogConfigBankStatement.KEY_PROPERTY_KONTEN, null);
     List<Konto> konten = null;
     
@@ -119,29 +118,36 @@ public class BankStatementImporter {
           if(!pattern.trim().isEmpty() && !matchingGroups.trim().isEmpty()) {
             final String search = Placeholder.get(Placeholder.TYPE_ID_USER).replaceKontoDaten(konto.getKundennummer(), Placeholder.get(Placeholder.TYPE_ACCOUNT).replaceKontoDaten(konto.getKontonummer(), pattern));
             
-            File[] pdfFiles = null;
+            final ArrayList<Import> pdfFiles = new ArrayList<>();
             
             //find all files that match the bank statement pattern for the current Konto
-            if(inFiles == null || inFiles.isEmpty()) {
-              pdfFiles = new File(konto.getMeta(DialogConfigBankStatement.KEY_DOWNLOAD_PATH, System.getProperty("user.home")+File.separator+"Downloads")).listFiles((FileFilter)file -> {
+            if(imports == null || imports.isEmpty()) {
+              File[] files = new File(konto.getMeta(DialogConfigBankStatement.KEY_DOWNLOAD_PATH, System.getProperty("user.home")+File.separator+"Downloads")).listFiles((FileFilter)file -> {
                 return Pattern.matches(search, file.getName());
               });
-            }
-            else {
-              final ArrayList<File> result = new ArrayList<>();
               
-              for(int i = inFiles.size()-1; i >= 0; i--) {
+              if(files != null) {
+                Arrays.sort(files);
                 
-                if(Pattern.matches(search, inFiles.get(i).getName())) {
-                  result.add(0,inFiles.get(i));
-                  inFiles.remove(i);
+                for(File f : files) {
+                  Import i = new Import();
+                  i.mFile = f;
+                  i.mMove = true;
+                  
+                  pdfFiles.add(i);
                 }
               }
-              
-              pdfFiles = result.toArray(new File[0]);
+            }
+            else {
+              for(int i = imports.size()-1; i >= 0; i--) {
+                if(imports.get(i).matches(konto,search)) {
+                  pdfFiles.add(0,imports.get(i));
+                  imports.remove(i);
+                }
+              }
             }
             
-            if(pdfFiles == null || pdfFiles.length == 0) {
+            if(pdfFiles == null || pdfFiles.isEmpty()) {
               continue;
             }
             
@@ -173,8 +179,8 @@ public class BankStatementImporter {
             final ArrayList<FileInfo> filesFound = new ArrayList<>();
             
             //handle all found bank statements for current Konto
-            for(File pdfFile : pdfFiles) {
-              Matcher m = p.matcher(pdfFile.getName());
+            for(Import pdfFile : pdfFiles) {
+              Matcher m = p.matcher(pdfFile.mFile.getName());
               
               if(m.find()) {
                 final FileInfo info = new FileInfo();
@@ -198,7 +204,8 @@ public class BankStatementImporter {
                 }
                 
                 if((info.mYear != null || info.mNumberYear != null) && (info.mMonth != null || info.mNumber != null)) {
-                  info.mPdfFile = pdfFile;
+                  info.mPdfFile = pdfFile.mFile;
+                  info.mMove = pdfFile.mMove;
                   filesFound.add(info);
                 }
               }                  
@@ -211,7 +218,7 @@ public class BankStatementImporter {
 
               for(FileInfo info : filesFound) {
                 // open import of bank statement for current Konto and current pdfFile
-                importKontoauszug(info.mPdfFile, konto, info, konto.getMeta(DialogConfigBankStatement.KEY_RENAME_PREFIX, ""), dateConfiguration, inFiles == null || inFiles.isEmpty());
+                importKontoauszug(info.mPdfFile, konto, info, konto.getMeta(DialogConfigBankStatement.KEY_RENAME_PREFIX, ""), dateConfiguration, info.mMove);
               }
             }
           }
@@ -579,6 +586,7 @@ public class BankStatementImporter {
     private String mDay;
     private String mNumber;
     private String mNumberYear;
+    private boolean mMove;
     
     private int getYear() {
       return Integer.parseInt(mYear);
@@ -780,6 +788,85 @@ public class BankStatementImporter {
     @Override
     public String toString() {
       return mPdfFile != null ? mPdfFile.getName() : "NO_FILE" + " Year: " +getYear() + " Month: " + getMonth()+" Day: "+getDay()+" Number: "+getNumber();
+    }
+  }
+  
+  private static final class Import {
+    private String mIBAN;
+    private String mKontoNummer;
+    private String mBIC;
+    private File mFile;
+    private boolean mMove;
+    
+    private Import() {}
+    
+    private static Import getImport(String text) {
+      Import result = new Import();
+      
+      String[] parts = text.split(";");
+      
+      int kIndex = -1;
+      int pIndex = -1;
+      int aIndex = -1;
+      
+      if(parts.length == 1) {
+        pIndex = 0;
+      }
+      else if(parts.length == 3) {
+        kIndex = 0;
+        pIndex = 1;
+        aIndex = 2;
+      }
+      else if(parts.length == 2) {
+        if(parts[0].toLowerCase().endsWith(".pdf")) {
+          pIndex = 0;
+          aIndex = 1;
+        }
+        else if(parts[1].toLowerCase().endsWith(".pdf")) {
+          kIndex = 0;
+          pIndex = 1;
+        }
+      }
+      
+      if(kIndex != -1) {
+        if(parts[kIndex].contains(":")) {
+          String[] subParts = parts[kIndex].split(":");
+          
+          result.mBIC = subParts[0];
+          result.mKontoNummer = subParts[1];
+        }
+        else {
+          result.mIBAN = parts[kIndex].replaceAll("\\s+", "");
+        }
+      }
+      
+      if(aIndex != -1) {
+        result.mMove = parts[aIndex].toLowerCase().equals("m");
+      }
+      else {
+        result.mMove = false;
+      }
+      
+      if(pIndex != -1) {
+        result.mFile = new File(parts[pIndex]);
+      }
+      
+      if(result.mFile == null || !result.mFile.isFile() || !result.mFile.getName().toLowerCase().endsWith(".pdf")) {
+        result = null;
+      }
+      
+      return result;
+    }
+    
+    boolean matches(Konto k, String search) throws RemoteException {
+      boolean result = (mIBAN == null && mBIC == null && mKontoNummer == null) 
+          || (mIBAN != null && k.getIban().replaceAll("\\s+", "").equals(mIBAN))
+          || (mBIC != null && mKontoNummer != null && k.getBic().equals(mBIC) && k.getKontonummer().equals(mKontoNummer));
+      
+      if(result && search != null) {
+        result = Pattern.matches(search, mFile.getName());
+      }
+      return result;
     }
   }
 }

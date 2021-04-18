@@ -18,6 +18,17 @@ public class BankStatementMessageConsumer implements MessageConsumer {
 
   @Override
   public void handleMessage(Message message) throws Exception {
+    
+    // TextMessage needs to contain a list of file paths separated by \n
+    // with the oldest bank statement at the top. It's possible to restrict
+    // the import to only a specific account, therefor the path has to be preceded
+    // by the IBAN or a combination of BIC:Kontonummer separated by ; from the path.
+    // It's also possible to control if the file should be moved instead of copied,
+    // to move the file path has to be succeeded by m separated by ; from the path.
+    //
+    // Examples:
+    // new TextMessage("/tmp/Kontoauszug_01_2021.pdf\n/tmp/Kontoauszug_02_2021.pdf)
+    // new TextMessage("DE07123412341234123412;/tmp/Kontoauszug_01_2021.pdf;m\nBELADEBEXXX:123456789;/tmp/Kontoauszug_02_2021.pdf;c)
     BankStatementImporter.getInstance().handleMessage((TextMessage)message);
   }
 
