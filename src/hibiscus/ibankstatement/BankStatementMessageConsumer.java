@@ -28,7 +28,7 @@ public class BankStatementMessageConsumer implements MessageConsumer {
     //
     // Examples:
     // new TextMessage("/tmp/Kontoauszug_01_2021.pdf\n/tmp/Kontoauszug_02_2021.pdf)
-    // new TextMessage("DE07123412341234123412;/tmp/Kontoauszug_01_2021.pdf;m\nBELADEBEXXX:123456789;/tmp/Kontoauszug_02_2021.pdf;c)
+    // new TextMessage("DE07123412341234123412;/tmp/Kontoauszug_01_2021.pdf;m\nBELADEBEXXX:123456789;/tmp/Kontoauszug_02_2021.pdf)
     BankStatementImporter.getInstance().handleMessage((TextMessage)message);
   }
 
