@@ -27,8 +27,8 @@ public class BankStatementMessageConsumer implements MessageConsumer {
     // to move the file path has to be succeeded by m separated by ; from the path.
     //
     // Examples:
-    // new TextMessage("/tmp/Kontoauszug_01_2021.pdf\n/tmp/Kontoauszug_02_2021.pdf)
-    // new TextMessage("DE07123412341234123412;/tmp/Kontoauszug_01_2021.pdf;m\nBELADEBEXXX:123456789;/tmp/Kontoauszug_02_2021.pdf)
+    // new TextMessage("/tmp/Kontoauszug_01_2021.pdf\n/tmp/Kontoauszug_02_2021.pdf")
+    // new TextMessage("DE07123412341234123412;/tmp/Kontoauszug_01_2021.pdf;m\nBELADEBEXXX:123456789;/tmp/Kontoauszug_02_2021.pdf")
     BankStatementImporter.getInstance().handleMessage((TextMessage)message);
   }
 
