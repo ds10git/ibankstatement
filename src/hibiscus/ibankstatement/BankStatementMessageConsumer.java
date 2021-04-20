@@ -18,6 +18,9 @@ public class BankStatementMessageConsumer implements MessageConsumer {
 
   @Override
   public void handleMessage(Message message) throws Exception {
+    if(message == null) {
+      return;
+    }
     
     // TextMessage needs to contain a list of file paths separated by \n
     // with the oldest bank statement at the top. It's possible to restrict
