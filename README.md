@@ -1,16 +1,12 @@
-hibiscus.ibankstatement
-=======================
+hibiscus.splittransaction
+=========================
 
-Ein Plugin zum halbautomatischen Profil-basiertem Import von Kontoauszügen in Hibiscus.
+Ein Plugin zum einfachen Aufteilen von Umsätzen in mehrere Umsätze in Hibiscus.
 
 ## Installation
 
 - Öffnen Sie die Installation von Plugins in Jameica über das Menü `Datei->Plugins online suchen...`
-- Klicken Sie dann auf `Repositories bearbeiten`
-- Im sich öffnenden Dialog _Plugin-Repositories_ dann auf `Neues Repository hinzufügen...`
-- Als URL für das neue Repository geben Sie dann Folgendes ein: http://hibiscus.tvbrowser.org/
-- Nachdem das Repository hinzugefügt wurde, wählen Sie im Tab `Verfügbar Plugins`
-das hinzugefügte Repository aus.
+- Wählen Sie im Tab `Verfügbare Plugins` das Repository `https://hibiscus.tvbrowser.org` aus.
 - Das Plugin _Kontoauszugimport_ wird angezeigt und kann über den Klick auf den Knopf `Installieren...` installiert werden.
 
 Nach einem Neustart von Jameica steht das Plugin zur Verfügung.
