@@ -1,7 +1,7 @@
-hibiscus.splittransaction
-=========================
+hibiscus.ibankstatement
+=======================
 
-Ein Plugin zum einfachen Aufteilen von Umsätzen in mehrere Umsätze in Hibiscus.
+Ein Plugin zum halbautomatischen Import von Kontoauszügen.
 
 ## Installation
 
