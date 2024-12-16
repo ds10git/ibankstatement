@@ -330,7 +330,7 @@ public class BankStatementImporter {
       }
       
       Date bisLast = null;
-      Integer nummerLast = new Integer(0);
+      Integer nummerLast = 0;
       
       // if last was found, use it's bis date for calculating von date of next Kontoauszug
       // and get it's number for calculation of next number
