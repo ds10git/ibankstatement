@@ -12,5 +12,6 @@ norisbank;Kontoauszug_\d{3}{konto}_(\d{4})-(\d{2})-(\d{2}).*?\.pdf;{jahr},{monat
 Paypal;MSR-(\d{4})(\d{2})\.PDF;{jahr},{monat};50110800;CHASDEF
 Postbank;Konto_MIT-ID-ERSETZEN_(\d{4})-(\d{2})-(\d{2})_PB.*?\.pdf;{jahr},{monat},{tag};;PBNKDEFF
 Renault Bank direkt;{konto}_(\d{4})_Nr\.(\d{3})_Kontoauszug_vom_\d{4}\.(\d{2})\..*?\.pdf;{jahr},{nummer},{monat};;RCIDDE3NPAY
+Skatbank;{konto}_(\d{4})_Nr\.(\d{3})_Kontoauszug_vom_(\d{4})\.(\d{2})\.\d{2}.*?\.pdf;{nummerJahr},{nummer},{jahr},{monat};83065408;GENODEF1SLR
 Sparkassen - monatlich;Konto_{konto}-Auszug_(\d{4})_(\d{3})\.pdf;{jahr},{monat};;WELADE,BYLADE,HELADE,BRLADE,MALADE,NOLADE,SOLADE,BELADE,BILADE,WUPSDE33,KARSDE66,COKSDE33,COLSDE33,SPKRDE33,SKLODE66,LUHSDE6A,MANSDE66,MERZDE55,MGLSDE33,SPMHDE3E,SSKMDEMM,SALADE51NKS,SSKNDE77,SLZODE22,PZHSDE66,SAKSDE55,KRSADE55,SOLSDE33,SPSHDE31,TRISDE55,SKHRDE6W,NASSDE55,FRSPDE66,SKGIDE5F,GOPSDE6G,HASPDEHH,SPKHDE2H,HEISDE66,WLAHDE44,SALADE51HOM,SPESDE3E,ESSLDE66,DORTDE33,OSDDDE81,DUISDE33,SDUEDE33,DUSSDEDD,CHEKDE81,BRUSDE66,SBREDE22,BBKRDE6B,SBCRDE66,SPBIDE3B,AUGSDE77,AACSDE33,OASPDE6A
 Sparkassen - nicht monatlich;Konto_{konto}-Auszug_(\d{4})_(\d{3})\.pdf;{nummerJahr},{nummer};;
